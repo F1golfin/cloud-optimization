@@ -1,0 +1,83 @@
+Linux Cloud-opti 7.0.14-orbstack-00380-ga7e0a2dc9535 #1 SMP PREEMPT Fri Aug  7 03:48:40 UTC 2026 aarch64 GNU/Linux
+Architecture:                            aarch64
+CPU op-mode(s):                          64-bit
+Byte Order:                              Little Endian
+CPU(s):                                  18
+On-line CPU(s) list:                     0-17
+Vendor ID:                               Apple
+Model name:                              -
+Model:                                   0
+Thread(s) per core:                      1
+Core(s) per cluster:                     18
+Socket(s):                               -
+Cluster(s):                              1
+Stepping:                                0x0
+CPU(s) scaling MHz:                      100%
+CPU max MHz:                             2000.0000
+CPU min MHz:                             2000.0000
+BogoMIPS:                                48.00
+Flags:                                   fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb dcpodp flagm2 frint i8mm bf16 ecv afp sme smei16i64 smef64f64 smei8i32 smef16f32 smeb16f32 smef32f32 ebf16 sme2 sme2p1 smei16i32 smebi32i32 smeb16b16 smef16f16
+L1d cache:                               2.3 MiB (18 instances)
+L1i cache:                               3.4 MiB (18 instances)
+L2 cache:                                48 MiB (3 instances)
+L3 cache:                                64 MiB (1 instance)
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Ghostwrite:                Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Old microcode:             Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Vulnerable
+Vulnerability Spectre v1:                Mitigation; __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; CSV2, but not BHB
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Not affected
+17
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       781Mi        14Gi        22Mi       575Mi        14Gi
+Swap:           16Gi          0B        16Gi
+NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
+nbd0    43:0    0     0B  0 disk 
+nbd1    43:32   0     0B  0 disk 
+nbd2    43:64   0     0B  0 disk 
+nbd3    43:96   0     0B  0 disk 
+zram0  253:0    0  15.7G  0 disk [SWAP]
+vda    254:0    0 405.4M  1 disk 
+vdb    254:16   0 926.3G  0 disk 
+└─vdb1 254:17   0 926.3G  0 part /mnt/machines/Cloud-opti
+                                 /Users/guillaume/OrbStack/Cloud-opti
+                                 /Users/guillaume/OrbStack/network-project
+                                 /Users/guillaume/OrbStack/docker/volumes/f1af5e492450ffc0b094aa588db44b2965842f5f7d443df0a52c6639ac0b10e5
+                                 /Users/guillaume/OrbStack/docker/volumes/ec81ec889c70f2058d6f52edd207cad556bc624842b60dc53fed3903c3509478
+                                 /Users/guillaume/OrbStack/docker/volumes/ea77744d50f4d6821a70bc83a0f3f91524feaf3b21a2e25098656e84530fa862
+                                 /Users/guillaume/OrbStack/docker/volumes/043d709d59755e116fbd667e49694b6863eb4466f33361a3d4c6a4495c406db4
+                                 /Users/guillaume/OrbStack/docker/volumes/e64636741ebb686d7429d5b9db6804506a8d25914c9cbbe906fa059eb83c233f
+                                 /Users/guillaume/OrbStack/docker/volumes/basile-back_postgres_data
+                                 /Users/guillaume/OrbStack/docker/volumes/back_postgres_data
+                                 /Users/guillaume/OrbStack/docker/volumes/act-toolcache
+                                 /Users/guillaume/OrbStack/docker/volumes/9f30e4613e771525afa7831a43aceee6393c03a39a9960fc2d4670fb770a0588
+                                 /Users/guillaume/OrbStack/docker/volumes/93633f84fc0f0a3333241f8316902188ea9e1415b9f71016c730568113d7e16c
+                                 /Users/guillaume/OrbStack/docker/volumes/1024_test_site_db_data
+                                 /mnt/machines/network-project
+                                 /mnt/machines/docker/volumes/f1af5e492450ffc0b094aa588db44b2965842f5f7d443df0a52c6639ac0b10e5
+                                 /mnt/machines/docker/volumes/ec81ec889c70f2058d6f52edd207cad556bc624842b60dc53fed3903c3509478
+                                 /mnt/machines/docker/volumes/ea77744d50f4d6821a70bc83a0f3f91524feaf3b21a2e25098656e84530fa862
+                                 /mnt/machines/docker/volumes/043d709d59755e116fbd667e49694b6863eb4466f33361a3d4c6a4495c406db4
+                                 /mnt/machines/docker/volumes/e64636741ebb686d7429d5b9db6804506a8d25914c9cbbe906fa059eb83c233f
+                                 /mnt/machines/docker/volumes/basile-back_postgres_data
+                                 /mnt/machines/docker/volumes/back_postgres_data
+                                 /mnt/machines/docker/volumes/act-toolcache
+                                 /mnt/machines/docker/volumes/9f30e4613e771525afa7831a43aceee6393c03a39a9960fc2d4670fb770a0588
+                                 /mnt/machines/docker/volumes/93633f84fc0f0a3333241f8316902188ea9e1415b9f71016c730568113d7e16c
+                                 /mnt/machines/docker/volumes/1024_test_site_db_data
+                                 /opt/orbstack-guest/data
+                                 /
+vdc    254:32   0     1G  0 disk [SWAP]
