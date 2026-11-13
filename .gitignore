@@ -1,0 +1,16 @@
+# Binaires compilés (reconstruits avec `make`)
+bin/
+
+# Métadonnées macOS (le disque est en exFAT)
+._*
+.DS_Store
+
+# PDF (énoncé du prof et rapport) : gardés en local, hors dépôt
+docs/*.pdf
+
+# Secrets : ne jamais committer de clés
+*.pem
+*.key
+*-key.json
+credentials*.json
+.env

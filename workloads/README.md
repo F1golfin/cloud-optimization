@@ -1,5 +1,9 @@
 # Cloud Optimization - Reference Go Workloads
 
+> Dans ce dépôt, chaque workload est dans son propre dossier (`workloads/<nom>/main.go`).
+> Compilation : `make` (local) ou `make linux` (VM GCP) depuis la racine. Les commandes
+> `go build` ci-dessous sont celles d'origine fournies avec les sources.
+
 These workloads are intentionally simple. Their goal is to provide different resource profiles for the semester project.
 
 ## 1. CPU workload
