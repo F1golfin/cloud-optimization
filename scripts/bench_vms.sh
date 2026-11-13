@@ -65,7 +65,8 @@ if (( ${#files[@]} > 0 )); then
     } > data/vm_performance.csv
     echo
     echo "data/vm_performance.csv :"
-    column -s, -t data/vm_performance.csv
+    # `column` n'est pas installé partout (Ubuntu minimal) : on aligne avec awk.
+    awk -F, '{ printf "%-17s %-12s %9s %4s %9s %9s %9s %10s\n", $1, $2, $3, $4, $5, $6, $7, $8 }' data/vm_performance.csv
 fi
 
 echo

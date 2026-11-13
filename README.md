@@ -109,7 +109,7 @@ Aucune clé ni aucun fichier d'identifiants ne doit être commité.
 
 - [x] Étape 1 : mise en place (module Go, Makefile, cross-compilation)
 - [x] Étape 2 : benchmark local
-- [ ] Étape 3 : VM GCP + benchmark sur chaque VM
+- [x] Étape 3 : VM GCP + benchmark sur chaque VM (`data/vm_performance.csv`)
 - [ ] Étape 4 : orchestrateur Go
 - [ ] Étape 5 : schedulers (RR, MET, MCT, Min-Min, Max-Min, V8)
 - [ ] Étape 6 : expériences réelles RR vs V8
