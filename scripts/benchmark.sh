@@ -1,70 +1,81 @@
 #!/usr/bin/env bash
 # Benchmark local des workloads (TD1), décliné en plusieurs tailles par workload.
 #
+# Le MÊME script sert en local (TD1) et sur chaque VM GCP (étape 3) : seules
+# la machine (-m) et la provenance des binaires (BIN_DIR) changent.
+#
 # Usage :
-#   ./scripts/benchmark.sh                      # toutes les déclinaisons, 3 runs
-#   ./scripts/benchmark.sh -r 5                 # 5 runs par déclinaison
+#   ./scripts/benchmark.sh -m local             # local : 4 workloads x 3 tailles x 5 runs
+#   ./scripts/benchmark.sh                      # sur une VM : machine = nom d'hôte (ex. cloudopt-vm1)
 #   ./scripts/benchmark.sh -w matrix_task       # un seul workload
-#   ./scripts/benchmark.sh -w cpu_task -s 300000 -r 3 -a   # une taille, ajout au CSV
+#   ./scripts/benchmark.sh -w cpu_task -s 500000 -r 3 -a   # une taille, ajout au CSV
 #
 # Options :
+#   -m MACHINE    nom de la machine écrit dans le CSV (défaut : nom d'hôte court)
 #   -w WORKLOAD   cpu_task | memory_task | matrix_task | sort_task (défaut : tous)
 #   -s SIZE       une seule taille (nécessite -w), doit rester dans les bornes
-#   -r RUNS       nombre d'exécutions par taille (défaut : 3)
-#   -o FILE       CSV de sortie (défaut : data/benchmark_local.csv)
+#   -r RUNS       nombre d'exécutions par taille (défaut : 5)
+#   -o FILE       CSV de sortie (défaut : results/benchmark_<MACHINE>.csv)
 #   -a            ajoute au CSV existant au lieu de le recréer
 #
 # Variables d'environnement :
 #   BIN_DIR        dossier des binaires (défaut : bin/local, créé par `make`)
-#   MAX_RUNTIME_S  durée max acceptable d'une tâche en secondes (défaut : 2)
+#   MIN_RUNTIME_S  durée en dessous de laquelle une mesure est signalée « courte » (défaut : 0.5)
+#   MAX_RUNTIME_S  durée au-delà de laquelle une mesure est signalée « longue » (défaut : 10)
 #
-# Sortie : une ligne par exécution  workload,size,run,runtime_s,max_rss_kb
+# Sortie : une ligne par exécution  machine,workload,size,run,runtime_s,max_rss_kb
 #   runtime_s  = temps réel (wall-clock) de l'exécution, en secondes
 #   max_rss_kb = mémoire physique maximale utilisée, en Ko
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BIN_DIR="${BIN_DIR:-bin/local}"
-MAX_RUNTIME_S="${MAX_RUNTIME_S:-2}"
-OUT="data/benchmark_local.csv"
-RUNS=3
+MIN_RUNTIME_S="${MIN_RUNTIME_S:-0.5}"
+MAX_RUNTIME_S="${MAX_RUNTIME_S:-10}"
+MACHINE="$(hostname -s)"
+OUT=""
+RUNS=5
 ONLY_WORKLOAD=""
 ONLY_SIZE=""
 APPEND=0
 
 # ---------------------------------------------------------------------------
-# Déclinaisons : 5 tailles par workload, toutes inférieures aux tailles
-# d'origine (cpu 1 000 000, mémoire 512 Mo, matrice 600, tri 5 000 000)
-# pour qu'aucune tâche ne dure trop longtemps, y compris sur une VM e2-medium.
-# Les bornes MIN/MAX encadrent les tailles acceptées par le script.
+# Tailles : 3 niveaux (petit / moyen / grand) par workload = les tailles de
+# référence du prof (workloads/README.md). Ce sont AUSSI les tailles utilisées
+# dans data/tasks.csv : le scheduler retrouve ainsi directement la durée mesurée
+# de chaque tâche sur chaque VM, sans extrapolation.
+# Les durées qui comptent sont celles mesurées sur les VM GCP (étape 3) ; si
+# elles sortent de [MIN_RUNTIME_S, MAX_RUNTIME_S], on ajustera ces tailles.
+# Les bornes MIN/MAX encadrent les tailles acceptées par l'option -s.
 # ---------------------------------------------------------------------------
 WORKLOADS="cpu_task memory_task matrix_task sort_task"
 
 sizes_of() {
     case "$1" in
-        cpu_task)    echo "100000 200000 300000 400000 500000" ;;  # entier max testé
-        memory_task) echo "32 64 128 192 256" ;;                   # Mo alloués
-        matrix_task) echo "200 250 300 350 400" ;;                 # dimension N (NxN)
-        sort_task)   echo "250000 500000 1000000 1500000 2000000" ;; # nb d'entiers
+        cpu_task)    echo "200000 500000 1000000" ;;     # entier max testé
+        memory_task) echo "128 256 512" ;;               # Mo alloués
+        matrix_task) echo "200 400 600" ;;               # dimension N (NxN)
+        sort_task)   echo "1000000 5000000 10000000" ;;  # nb d'entiers
         *) return 1 ;;
     esac
 }
 
 bounds_of() {   # affiche "MIN MAX"
     case "$1" in
-        cpu_task)    echo "100000 500000" ;;
-        memory_task) echo "32 256" ;;
-        matrix_task) echo "200 400" ;;
-        sort_task)   echo "250000 2000000" ;;
+        cpu_task)    echo "100000 2000000" ;;
+        memory_task) echo "32 1024" ;;      # e2-medium = 4 Go de RAM
+        matrix_task) echo "100 1000" ;;
+        sort_task)   echo "250000 20000000" ;;
         *) return 1 ;;
     esac
 }
 
-usage() { sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 die()   { echo "Erreur : $*" >&2; exit 1; }
 
-while getopts "w:s:r:o:ah" opt; do
+while getopts "m:w:s:r:o:ah" opt; do
     case "$opt" in
+        m) MACHINE="$OPTARG" ;;
         w) ONLY_WORKLOAD="$OPTARG" ;;
         s) ONLY_SIZE="$OPTARG" ;;
         r) RUNS="$OPTARG" ;;
@@ -77,6 +88,8 @@ done
 
 # ---------------------------------------------------------------- vérifications
 [[ "$RUNS" =~ ^[1-9][0-9]*$ ]] || die "-r doit être un entier >= 1"
+[[ "$MACHINE" =~ ^[A-Za-z0-9_.-]+$ ]] || die "-m : nom de machine invalide ($MACHINE)"
+OUT="${OUT:-results/benchmark_${MACHINE}.csv}"
 if [[ -n "$ONLY_WORKLOAD" ]]; then
     sizes_of "$ONLY_WORKLOAD" >/dev/null || die "workload inconnu : $ONLY_WORKLOAD (choix : $WORKLOADS)"
     WORKLOADS="$ONLY_WORKLOAD"
@@ -135,12 +148,13 @@ export WALL_FILE="$TMP/wall"
 # ---------------------------------------------------------------- campagne
 mkdir -p "$(dirname "$OUT")"
 if [[ "$APPEND" -eq 0 || ! -s "$OUT" ]]; then
-    echo "workload,size,run,runtime_s,max_rss_kb" > "$OUT"
+    echo "machine,workload,size,run,runtime_s,max_rss_kb" > "$OUT"
 fi
 
-echo "Machine : $(uname -sm), $(getconf _NPROCESSORS_ONLN) CPU logiques | runs=$RUNS | binaires=$BIN_DIR -> $OUT"
+echo "Machine : $MACHINE ($(uname -sm), $(getconf _NPROCESSORS_ONLN) CPU logiques) | runs=$RUNS | binaires=$BIN_DIR -> $OUT"
 
 too_long=0
+too_short=0
 for w in $WORKLOADS; do
     sizes="${ONLY_SIZE:-$(sizes_of "$w")}"
     for size in $sizes; do
@@ -149,10 +163,12 @@ for w in $WORKLOADS; do
         for run in $(seq 1 "$RUNS"); do
             res="$(run_once "$BIN_DIR/$w" "$size")" || exit 1
             read -r wall rss <<< "$res"
-            echo "$w,$size,$run,$wall,$rss" >> "$OUT"
+            echo "$MACHINE,$w,$size,$run,$wall,$rss" >> "$OUT"
             flag=""
             if awk -v t="$wall" -v m="$MAX_RUNTIME_S" 'BEGIN{exit !(t > m)}'; then
                 flag="  <-- dépasse ${MAX_RUNTIME_S}s"; too_long=$((too_long + 1))
+            elif awk -v t="$wall" -v m="$MIN_RUNTIME_S" 'BEGIN{exit !(t < m)}'; then
+                flag="  (court : < ${MIN_RUNTIME_S}s)"; too_short=$((too_short + 1))
             fi
             printf "  %-12s size=%-8s run=%s  %8.4fs  %8d Ko%s\n" "$w" "$size" "$run" "$wall" "$rss" "$flag"
         done
@@ -162,14 +178,16 @@ done
 # ---------------------------------------------------------------- calculs
 echo
 echo "Résumé (calculé à partir des mesures brutes de $OUT) :"
-awk -F, -v max="$MAX_RUNTIME_S" '
-    NR == 1 { next }
+# Colonnes : 1 machine, 2 workload, 3 size, 4 run, 5 runtime_s, 6 max_rss_kb
+# On n'affiche que les lignes de la machine courante (utile avec -a).
+awk -F, -v machine="$MACHINE" -v max="$MAX_RUNTIME_S" -v min="$MIN_RUNTIME_S" '
+    NR == 1 || $1 != machine { next }
     {
-        k = $1 "," $2
-        if (!(k in n)) { order[++nk] = k; mn[k] = $4; mx[k] = $4 }
-        n[k]++; s[k] += $4; ss[k] += $4 * $4; rss[k] += $5
-        if ($4 < mn[k]) mn[k] = $4
-        if ($4 > mx[k]) mx[k] = $4
+        k = $2 "," $3
+        if (!(k in n)) { order[++nk] = k; mn[k] = $5; mx[k] = $5 }
+        n[k]++; s[k] += $5; ss[k] += $5 * $5; rss[k] += $6
+        if ($5 < mn[k]) mn[k] = $5
+        if ($5 > mx[k]) mx[k] = $5
     }
     END {
         printf "%-12s %9s %4s %9s %9s %9s %9s %6s %9s\n", "workload", "size", "runs", "moy(s)", "écart(s)", "min(s)", "max(s)", "cv%", "RSS(Mo)"
@@ -178,11 +196,17 @@ awk -F, -v max="$MAX_RUNTIME_S" '
             m = s[k] / n[k]
             v = (n[k] > 1) ? (ss[k] - n[k] * m * m) / (n[k] - 1) : 0
             sd = (v > 0) ? sqrt(v) : 0
-            printf "%-12s %9s %4d %9.4f %9.4f %9.4f %9.4f %6.1f %9.1f%s\n", p[1], p[2], n[k], m, sd, mn[k], mx[k], (m > 0 ? 100 * sd / m : 0), rss[k] / n[k] / 1024, (mx[k] > max ? "  TROP LONG" : "")
+            note = (mx[k] > max) ? "  TROP LONG" : ((m < min) ? "  court" : "")
+            printf "%-12s %9s %4d %9.4f %9.4f %9.4f %9.4f %6.1f %9.1f%s\n", p[1], p[2], n[k], m, sd, mn[k], mx[k], (m > 0 ? 100 * sd / m : 0), rss[k] / n[k] / 1024, note
         }
     }' "$OUT"
 
 if (( too_long > 0 )); then
     echo
     echo "Attention : $too_long exécution(s) au-delà de ${MAX_RUNTIME_S}s : réduire les tailles dans sizes_of()."
+fi
+if (( too_short > 0 )); then
+    echo
+    echo "Note : $too_short exécution(s) sous ${MIN_RUNTIME_S}s sur $MACHINE. Normal sur une machine rapide ;"
+    echo "       ce sont les durées sur les VM GCP qui servent à calibrer les tailles."
 fi

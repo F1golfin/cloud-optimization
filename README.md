@@ -78,6 +78,20 @@ Chaque programme affiche une ligne JSON, par exemple :
 {"task":"cpu_task","size":500000,"runtime_s":0.241,"primes_found":41538}
 ```
 
+## Benchmark
+
+Le même script mesure les workloads en local et sur chaque VM :
+4 workloads × 3 tailles (celles de `data/tasks.csv`) × 5 répétitions,
+avec une exécution de chauffe non mesurée avant chaque taille.
+
+```bash
+make && ./scripts/benchmark.sh -m local        # -> results/benchmark_local.csv
+```
+
+Format : `machine,workload,size,run,runtime_s,max_rss_kb`. La colonne `machine`
+permet de fusionner les fichiers de toutes les VM en un seul tableau pour le
+scheduler. Le benchmark local a été fait sous Linux (VM OrbStack, Ubuntu arm64).
+
 ## Modèle d'optimisation (résumé)
 
 - Score : `S = 0,6 · C/C_RR + 0,4 · D/D_RR` (plus bas = mieux ; Round Robin = 1).
@@ -94,7 +108,7 @@ Aucune clé ni aucun fichier d'identifiants ne doit être commité.
 ## Avancement
 
 - [x] Étape 1 : mise en place (module Go, Makefile, cross-compilation)
-- [ ] Étape 2 : benchmark local
+- [x] Étape 2 : benchmark local
 - [ ] Étape 3 : VM GCP + benchmark sur chaque VM
 - [ ] Étape 4 : orchestrateur Go
 - [ ] Étape 5 : schedulers (RR, MET, MCT, Min-Min, Max-Min, V8)
