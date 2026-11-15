@@ -151,7 +151,9 @@ if [[ "$APPEND" -eq 0 || ! -s "$OUT" ]]; then
     echo "machine,workload,size,run,runtime_s,max_rss_kb" > "$OUT"
 fi
 
-echo "Machine : $MACHINE ($(uname -sm), $(getconf _NPROCESSORS_ONLN) CPU logiques) | runs=$RUNS | binaires=$BIN_DIR -> $OUT"
+# Modèle de processeur : une VM e2 peut changer de famille de CPU à chaque démarrage.
+CPU_MODEL="$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ *//' || true)"
+echo "Machine : $MACHINE ($(uname -sm), $(getconf _NPROCESSORS_ONLN) CPU logiques, ${CPU_MODEL:-CPU inconnu}) | runs=$RUNS | binaires=$BIN_DIR -> $OUT"
 
 too_long=0
 too_short=0

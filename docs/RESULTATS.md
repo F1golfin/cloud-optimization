@@ -17,7 +17,7 @@ Mis à jour à chaque étape. Dernière mise à jour : 15/11/2026.
 | 2. Benchmark local (Linux) | ✅ | `scripts/benchmark.sh`, `results/benchmark_local.csv` |
 | 3. VM GCP + benchmark par VM | ✅ | `scripts/{config,manage_vms,deploy,bench_vms}.sh`, `data/vm_performance.csv` |
 | 4. Orchestrateur Go | ✅ testé sur GCP | `orchestrator/main.go`, `results/run_rr*.csv` |
-| 4b. Expérience « workers » | ⏳ en cours | parallélisme réel de chaque VM |
+| 4b. Expérience « workers » | ✅ | `scripts/exp_workers.sh`, `results/exp_workers/` |
 | 5. Schedulers (RR, MET, MCT, Min-Min, Max-Min, V8) | ⬜ | RR seul existe (`scheduler/roundrobin`) |
 | 6. Expériences réelles RR vs V8 | ⬜ | |
 | 7. Soutenance | ⬜ | |
@@ -138,8 +138,7 @@ Fichiers : `results/run_rr.csv` (par tâche), `results/run_rr_vms.csv` (par VM).
    tâches se partagent donc un cœur. HighCPU (4 vCPU = 2 cœurs) n'a presque pas
    ralenti. C'est probablement la principale cause de l'écart prédit/réel de
    l'ancien rapport (1,1 s prédit, 3–4 s mesuré).
-   ⚠️ 9 tâches seulement, juste après le démarrage des VM : **à confirmer** par
-   l'expérience « workers » avant de l'intégrer au modèle du scheduler.
+   → **Confirmé** par l'expérience « workers » (§ 6).
 4. **Le coût est dicté par la facturation minimale de 60 s** : le lot dure
    1,3 s mais chaque VM est comptée 60 s. Le coût ne dépend alors que du
    nombre de VM utilisées et de leur prix. Pour comparer les coûts de RR et de
@@ -147,7 +146,84 @@ Fichiers : `results/run_rr.csv` (par tâche), `results/run_rr_vms.csv` (par VM).
 
 ---
 
-## 6. Décisions prises
+## 6. Expérience « workers » : le parallélisme réel de chaque VM
+
+Commande : `./scripts/exp_workers.sh` (15/11/2026). Même lot de **24 tâches
+par VM** (2 × les 12 combinaisons du benchmark), exécuté avec 1, 2 et 4
+workers par VM, **3 répétitions** par niveau, les 4 VM en même temps.
+Fichiers : `results/exp_workers/` (`summary.csv` + un CSV par exécution).
+
+| VM | Workers | Durée du lot (s) | Débit (tâches/s) | Gain vs 1 worker | Ralentissement par tâche* | Surcoût SSH |
+|---|---|---|---|---|---|---|
+| highcpu (4 vCPU) | 1 | 10,82 | 2,22 | — | 0,89 | 0,086 s |
+| | 2 | 6,03 | 3,98 | × 1,79 | 0,94 | 0,084 s |
+| | 4 | **4,51** | **5,32** | **× 2,40** | 1,32 | 0,100 s |
+| vm1 (2 vCPU) | 1 | 12,21 | 1,96 | — | 0,95 | 0,083 s |
+| | 2 | 9,02 | 2,66 | × 1,36 | 1,42 | 0,110 s |
+| | 4 | 8,84 | 2,72 | × 1,39 | 2,81 | 0,185 s |
+| vm2 (2 vCPU partagés) | 1 | 10,96 | 2,19 | — | 0,90 | 0,086 s |
+| | 2 | 8,08 | 2,97 | × 1,36 | 1,36 | 0,107 s |
+| | 4 | 7,81 | 3,08 | × 1,41 | 2,61 | 0,175 s |
+| vm3 (2 vCPU partagés) | 1 | 10,81 | 2,22 | — | 0,93 | 0,082 s |
+| | 2 | 8,04 | 2,99 | × 1,35 | 1,41 | 0,108 s |
+| | 4 | 8,38 | 2,86 | × 1,29 | 3,04 | 0,187 s |
+
+\* Ralentissement = temps de calcul mesuré par le workload pendant le lot /
+médiane du benchmark (tâche seule), moyenné sur les 24 tâches. Il est
+légèrement inférieur à 1 avec 1 worker parce que le benchmark chronométrait
+aussi le lancement du processus (quelques ms, non négligeable pour les
+petites tâches), alors que `runtime_s` ne mesure que le calcul.
+
+Écart entre les 3 répétitions : < 3 % dans presque tous les cas
+(exception : vm3 avec 4 workers, une répétition à 9,8 s au lieu de 7,7 s).
+
+### Constats
+
+1. **Hypothèse confirmée : une VM à 2 vCPU ne vaut que ≈ 1,35 cœur.** Passer
+   de 1 à 2 workers n'augmente le débit que de 35 % (et non de 100 %), car
+   chaque tâche ralentit d'environ × 1,4. Avec 4 workers, plus aucun gain :
+   les tâches se partagent le même cœur (ralentissement × 2,6 à × 3).
+   Sur GCP, 1 vCPU = 1 hyperthread ; 2 vCPU = 1 cœur physique.
+2. **HighCPU (4 vCPU = 2 cœurs) passe bien à l'échelle** : × 1,79 avec 2
+   workers, × 2,40 avec 4.
+3. **Nombre de workers retenu = nombre de vCPU** (2, ou 4 pour highcpu) :
+   c'est le débit maximal ou quasi maximal partout. Au-delà, on ne gagne
+   rien et le surcoût SSH augmente (0,08 → 0,19 s).
+4. **Rapport débit / prix** (au nombre de workers retenu) :
+
+   | VM | Débit (tâches/s) | Prix ($/h) | Débit par $/h |
+   |---|---|---|---|
+   | vm2 / vm3 | 2,97 / 2,99 | 0,0369 | **≈ 81** |
+   | highcpu | 5,32 | 0,1088 | 49 |
+   | vm1 | 2,66 | 0,0737 | 36 |
+
+   **vm2/vm3 sont de loin les plus économiques, highcpu est la plus rapide,
+   et vm1 est dominée** (même débit que vm2 pour 2 × le prix). C'est
+   exactement le compromis coût/délai que doit arbitrer le scheduler.
+5. **Le processeur d'une VM peut changer d'un démarrage à l'autre.** Pendant
+   ce lot, vm1 a calculé `cpu_task` **2 × plus vite** que vm3, mais `sort_task`
+   35 % plus lentement, `matrix_task` 20 % et `memory_task` 13 % plus
+   lentement. Lors du benchmark (session précédente), vm1 et vm3 étaient
+   identiques sur tout. **Hypothèse** : GCP a placé vm1 sur une autre famille
+   de processeur (les VM e2 peuvent tourner sur plusieurs générations
+   Intel/AMD). `gcloud ... cpuPlatform` affiche « Intel Broadwell » pour toutes
+   les VM et ne permet pas de trancher.
+   → L'orchestrateur et le benchmark **enregistrent désormais le modèle de
+   processeur réel** (`/proc/cpuinfo`, colonne `cpu_model` de `<run>_vms.csv`)
+   pour le vérifier à la prochaine session.
+   → Conséquence pour le modèle : la durée prédite d'une tâche peut varier de
+   ± 30 % selon le processeur obtenu. C'est une limite à présenter à l'oral.
+
+### Conséquences pour le modèle du scheduler
+
+- Durée prédite d'une tâche = médiane du benchmark × facteur de contention de
+  la VM (≈ 1,4 pour une VM à 2 vCPU avec 2 workers, ≈ 1,3 pour highcpu avec 4)
+  + surcoût SSH (≈ 0,1 s).
+- Capacité d'une VM = nombre de workers (= vCPU), chacun vidant sa part de la file.
+
+---
+
+## 7. Décisions prises
 
 | Décision | Raison |
 |---|---|
@@ -157,22 +233,23 @@ Fichiers : `results/run_rr.csv` (par tâche), `results/run_rr_vms.csv` (par VM).
 | Une connexion SSH par VM, réutilisée | Surcoût par tâche divisé par 5 à 10 |
 | Horodatage sur la machine de contrôle | Une seule horloge, aucune synchronisation entre VM |
 | `overhead_s = durée mesurée − runtime_s du workload` | Sépare calcul et coût d'orchestration |
+| Workers par VM = nombre de vCPU | Débit maximal mesuré (§ 6) ; au-delà, aucun gain |
+| Attente de SSH au démarrage (~2 min max) | Une VM `RUNNING` n'accepte pas encore les connexions |
+| Relevé du modèle de processeur à chaque lot | Le CPU d'une VM e2 peut changer entre deux démarrages (§ 6) |
 
 ---
 
-## 7. Prochaines étapes
+## 8. Prochaines étapes
 
-1. **Expérience « workers »** : même lot sur chaque VM avec 1, 2 (et 4 pour
-   highcpu) workers, et comparaison du débit. On en déduit le bon nombre de
-   workers par VM et un facteur de ralentissement pour le modèle.
+1. ~~Expérience « workers »~~ : faite (§ 6).
 2. **Scheduler (étape 5)** : modèle de prédiction = médiane du benchmark ×
-   facteur de contention + surcoût SSH mesuré ; implémenter MET, MCT,
+   facteur de contention + surcoût SSH mesuré (§ 6) ; implémenter MET, MCT,
    Min-Min, Max-Min et V8 (recherche locale qui minimise directement
    `S = 0,6·C/C_RR + 0,4·D/D_RR` sous `D ≤ 1,25·D_RR`).
 3. **Expériences (étape 6)** : lots plus gros (makespan ≥ 60 s), RR vs V8,
    3 répétitions, erreur prédit vs réel.
 
-## 8. Règles
+## 9. Règles
 
 - Ne jamais présenter une durée simulée comme mesurée.
 - Toujours `./scripts/manage_vms.sh stop` après une session GCP.

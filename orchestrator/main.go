@@ -76,6 +76,7 @@ func (r Result) Duration() float64 { return (r.End - r.Start).Seconds() }
 // Runner : la façon d'exécuter une tâche sur une VM (SSH réel ou local pour tester).
 type Runner interface {
 	Prepare(vms []string) error
+	CPUModel(vm string) string // processeur réellement obtenu (il peut changer à chaque démarrage)
 	Run(ctx context.Context, vm string, t Task) (stdout string, err error)
 	Close()
 }
@@ -173,7 +174,7 @@ func main() {
 
 	sort.Slice(results, func(i, j int) bool { return results[i].Start < results[j].Start })
 	check(writeResults(*outPath, results))
-	failed := summarize(results, machines, vms, *outPath)
+	failed := summarize(results, machines, vms, *outPath, runner)
 	if failed > 0 {
 		os.Exit(1)
 	}
@@ -218,6 +219,14 @@ type sshRunner struct {
 	project, zone, user, key, remoteDir string
 	hosts                               map[string]hostInfo
 	ctlDir                              string
+	cpuMu                               sync.Mutex
+	cpu                                 map[string]string
+}
+
+func (s *sshRunner) CPUModel(vm string) string {
+	s.cpuMu.Lock()
+	defer s.cpuMu.Unlock()
+	return s.cpu[vm]
 }
 
 type hostInfo struct{ id, ip string }
@@ -232,6 +241,7 @@ func (s *sshRunner) Prepare(vms []string) error {
 		return fmt.Errorf("gcloud compute instances list : %v", err)
 	}
 	s.hosts = map[string]hostInfo{}
+	s.cpu = map[string]string{}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		f := strings.Split(line, ",")
 		if len(f) == 4 && f[2] == "RUNNING" && f[3] != "" {
@@ -261,7 +271,10 @@ func (s *sshRunner) Prepare(vms []string) error {
 			var out []byte
 			var err error
 			for attempt := 1; attempt <= 24; attempt++ {
-				out, err = exec.Command("ssh", append(s.sshArgs(vm), "true")...).CombinedOutput()
+				// La 1re commande ouvre la connexion maître ET relève le processeur :
+				// une VM e2 n'atterrit pas toujours sur la même famille de CPU.
+				out, err = exec.Command("ssh", append(s.sshArgs(vm),
+					"grep -m1 'model name' /proc/cpuinfo | cut -d: -f2-")...).CombinedOutput()
 				msg := string(out)
 				if err == nil || !(strings.Contains(msg, "Connection refused") ||
 					strings.Contains(msg, "timed out") || strings.Contains(msg, "No route to host")) {
@@ -272,7 +285,11 @@ func (s *sshRunner) Prepare(vms []string) error {
 				}
 				time.Sleep(5 * time.Second)
 			}
-			if err != nil {
+			if err == nil {
+				s.cpuMu.Lock()
+				s.cpu[vm] = strings.TrimSpace(string(out))
+				s.cpuMu.Unlock()
+			} else {
 				errs[i] = fmt.Errorf("connexion SSH à %s impossible : %v %s\n"+
 					"  (si c'est la première fois : gcloud compute ssh %s --zone %s --command true)",
 					vm, err, strings.TrimSpace(string(out)), vm, s.zone)
@@ -338,6 +355,8 @@ func (l *localRunner) Run(ctx context.Context, _ string, t Task) (string, error)
 }
 
 func (l *localRunner) Close() {}
+
+func (l *localRunner) CPUModel(string) string { return "local" }
 
 func runCmd(ctx context.Context, name string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -454,7 +473,7 @@ func writeResults(path string, results []Result) error {
 }
 
 // summarize affiche makespan, charge et coût par VM, et les écrit dans <out>_vms.csv.
-func summarize(results []Result, machines map[string]Machine, vms []string, outPath string) (failed int) {
+func summarize(results []Result, machines map[string]Machine, vms []string, outPath string, runner Runner) (failed int) {
 	type agg struct {
 		n                 int
 		first, last       float64
@@ -496,9 +515,9 @@ func summarize(results []Result, machines map[string]Machine, vms []string, outP
 	defer f.Close()
 	w := csv.NewWriter(f)
 	w.Write([]string{"vm", "tasks", "first_start_s", "last_end_s", "active_s", "busy_s",
-		"remote_runtime_s", "mean_overhead_s", "billed_s", "cost_usd"})
+		"remote_runtime_s", "mean_overhead_s", "billed_s", "cost_usd", "cpu_model"})
 
-	fmt.Printf("\n%-17s %6s %9s %9s %9s %10s %10s\n", "VM", "tâches", "actif(s)", "occupé(s)", "calcul(s)", "surcoût/t", "coût($)")
+	fmt.Printf("\n%-17s %6s %9s %9s %9s %10s %10s  %s\n", "VM", "tâches", "actif(s)", "occupé(s)", "calcul(s)", "surcoût/t", "coût($)", "processeur")
 	totalCost := 0.0
 	for _, vm := range vms {
 		a := per[vm]
@@ -513,9 +532,10 @@ func summarize(results []Result, machines map[string]Machine, vms []string, outP
 		if a.nRemote > 0 {
 			meanOvh = a.ovh / float64(a.nRemote)
 		}
-		fmt.Printf("%-17s %6d %9.2f %9.2f %9.2f %9.3fs %10.6f\n", vm, a.n, active, a.busy, a.remote, meanOvh, cost)
+		cpu := runner.CPUModel(vm)
+		fmt.Printf("%-17s %6d %9.2f %9.2f %9.2f %9.3fs %10.6f  %s\n", vm, a.n, active, a.busy, a.remote, meanOvh, cost, cpu)
 		w.Write([]string{vm, strconv.Itoa(a.n), f6(a.first), f6(a.last), f6(active), f6(a.busy),
-			f6(a.remote), f6(meanOvh), f6(billed), fmt.Sprintf("%.8f", cost)})
+			f6(a.remote), f6(meanOvh), f6(billed), fmt.Sprintf("%.8f", cost), cpu})
 	}
 	w.Flush()
 
