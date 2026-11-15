@@ -5,16 +5,18 @@ import "cloud-optimization/scheduler/model"
 // MinMin : à chaque tour, on calcule pour chaque tâche restante sa meilleure
 // heure de fin possible (sur sa meilleure VM), puis on place la tâche dont
 // cette heure est la PLUS PETITE. Les petites tâches passent d'abord.
-func MinMin(in *model.Instance) model.Allocation { return minMax(in, false) }
+func MinMin(in *model.Instance) model.Allocation { return minMax(in, allVMs(in), false) }
 
 // MaxMin : même principe, mais on place la tâche dont la meilleure heure de
 // fin est la PLUS GRANDE. Les grosses tâches passent d'abord, ce qui évite
 // qu'une grosse tâche placée en dernier allonge le lot.
-func MaxMin(in *model.Instance) model.Allocation { return minMax(in, true) }
+func MaxMin(in *model.Instance) model.Allocation { return minMax(in, allVMs(in), true) }
 
-// minMax : coût O(n² · m) — environ 16 millions d'évaluations pour 2 000
-// tâches et 4 VM, soit bien moins d'une seconde.
-func minMax(in *model.Instance, pickLargest bool) model.Allocation {
+// minMax : Min-Min ou Max-Min en n'utilisant QUE les VM de la liste vms
+// (les autres reçoivent 0 tâche : elles ne seront pas allumées).
+// Coût O(n² · m) — environ 16 millions d'évaluations pour 2 000 tâches et
+// 4 VM, soit bien moins d'une seconde.
+func minMax(in *model.Instance, vms []int, pickLargest bool) model.Allocation {
 	lanes := newLanes(in)
 	remaining := make([]int, len(in.Tasks))
 	for i := range remaining {
@@ -26,7 +28,7 @@ func minMax(in *model.Instance, pickLargest bool) model.Allocation {
 		chosen, chosenVM := -1, -1
 		chosenFinish := 0.0
 		for k, i := range remaining {
-			j, f := bestCompletion(in, lanes, i)
+			j, f := bestCompletion(in, lanes, i, vms)
 			better := chosen < 0 ||
 				(!pickLargest && f < chosenFinish) ||
 				(pickLargest && f > chosenFinish)

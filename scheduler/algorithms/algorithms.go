@@ -10,6 +10,11 @@
 //	MCT     Minimum Completion Time : la VM où la tâche finirait le plus tôt
 //	Min-Min à chaque tour, place la tâche qui peut finir le plus tôt
 //	Max-Min à chaque tour, place la tâche dont la meilleure fin est la plus tardive
+//
+// et notre algorithme :
+//
+//	select-maxmin  essaie chaque combinaison « nombre de VM par type »,
+//	               répartit avec Max-Min, garde le meilleur S admissible (select.go)
 package algorithms
 
 import "cloud-optimization/scheduler/model"
@@ -27,6 +32,7 @@ var All = []Algo{
 	{"mct", "Minimum Completion Time", MCT},
 	{"minmin", "Min-Min", MinMin},
 	{"maxmin", "Max-Min", MaxMin},
+	{"select-maxmin", "Choix du nombre de VM par type + Max-Min (notre algorithme)", SelectMaxMin},
 }
 
 func Get(name string) (Algo, bool) {
@@ -47,11 +53,21 @@ func newLanes(in *model.Instance) []model.Lanes {
 	return l
 }
 
-// bestCompletion : la VM sur laquelle la tâche i finirait le plus tôt, et à quelle heure.
-// En cas d'égalité, la première VM de machines.csv l'emporte (résultat déterministe).
-func bestCompletion(in *model.Instance, lanes []model.Lanes, i int) (vm int, finish float64) {
+// allVMs : les indices de toutes les VM de l'instance.
+func allVMs(in *model.Instance) []int {
+	vms := make([]int, len(in.Machines))
+	for j := range vms {
+		vms[j] = j
+	}
+	return vms
+}
+
+// bestCompletion : parmi les VM autorisées (vms), celle sur laquelle la tâche i
+// finirait le plus tôt, et à quelle heure. En cas d'égalité, la première VM de
+// la liste l'emporte (résultat déterministe).
+func bestCompletion(in *model.Instance, lanes []model.Lanes, i int, vms []int) (vm int, finish float64) {
 	vm = -1
-	for j := range in.Machines {
+	for _, j := range vms {
 		f := lanes[j].FinishIfAdded(in.P[i][j])
 		if vm < 0 || f < finish {
 			vm, finish = j, f

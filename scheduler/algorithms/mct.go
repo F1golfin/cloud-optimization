@@ -9,9 +9,10 @@ import "cloud-optimization/scheduler/model"
 // Équilibre bien la charge, mais ignore le prix des VM.
 func MCT(in *model.Instance) model.Allocation {
 	lanes := newLanes(in)
+	vms := allVMs(in)
 	a := make(model.Allocation, 0, len(in.Tasks))
 	for i := range in.Tasks {
-		j, _ := bestCompletion(in, lanes, i)
+		j, _ := bestCompletion(in, lanes, i, vms)
 		lanes[j].Add(in.P[i][j])
 		a = append(a, model.Assignment{Task: i, VM: j})
 	}

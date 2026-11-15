@@ -10,6 +10,10 @@
 //	./bin/scheduler -compare -tasks data/tasks_500.csv -exclude cloudopt-highcpu
 //	./bin/scheduler -compare -tasks data/tasks.csv -eval data/allocation_manual.csv
 //
+// Justifier le choix de select-maxmin (résultat de chaque combinaison de types) :
+//
+//	./bin/scheduler -explain -tasks data/tasks_500.csv
+//
 // Les durées, coûts et scores affichés sont des PRÉDICTIONS du modèle
 // (package model), pas des mesures : seule l'exécution par l'orchestrateur mesure.
 package main
@@ -29,7 +33,8 @@ import (
 )
 
 func main() {
-	algo := flag.String("algo", "rr", "algorithme : rr, met, mct, minmin, maxmin")
+	algo := flag.String("algo", "rr", "algorithme : rr, met, mct, minmin, maxmin, select-maxmin")
+	explain := flag.Bool("explain", false, "affiche le résultat de Max-Min pour chaque combinaison « nombre de VM par type »")
 	tasks := flag.String("tasks", "", "lot de tâches (task_id,workload,size) [obligatoire]")
 	machines := flag.String("machines", "data/machines.csv", "description des VM")
 	perf := flag.String("perf", "data/vm_performance.csv", "médianes du benchmark par VM")
@@ -68,6 +73,28 @@ func main() {
 	fmt.Printf("Modèle : durée = médiane benchmark x contention + %.2f s | S = %.1f·C/C_RR + %.1f·D/D_RR | D <= %.2f x D_RR = %.3f s\n\n",
 		p.OverheadS, p.WeightCost, 1-p.WeightCost, p.DeadlineFactor, p.DeadlineFactor*ref.Makespan)
 
+	if *explain {
+		// Tableau de justification de select-maxmin : une ligne par combinaison
+		// « nombre de VM de chaque type », Max-Min sur chacune, triées par S.
+		groups := algorithms.GroupByType(in)
+		results := algorithms.EvaluateCombinations(in)
+		fmt.Printf("%d combinaisons « nombre de VM par type » (Max-Min sur chacune) :\n\n", len(results))
+		fmt.Printf("%-55s %12s %13s %8s %10s\n", "VM allumées", "Coût ($)", "Makespan (s)", "S", "Admissible")
+		for k, r := range results {
+			feasible, mark := "oui", ""
+			if !r.Feasible {
+				feasible = "non"
+			}
+			if k == 0 && r.Feasible {
+				mark = "  <- choisi"
+			}
+			fmt.Printf("%-55s %12.6f %13.3f %8.4f %10s%s\n",
+				r.Label(groups), r.Metrics.Cost, r.Metrics.Makespan, r.Score, feasible, mark)
+		}
+		fmt.Println("\nPrédictions du modèle (pas des mesures).")
+		return
+	}
+
 	if !*compare {
 		a, ok := algorithms.Get(*algo)
 		if !ok {
@@ -77,9 +104,20 @@ func main() {
 		check(in.Validate(alloc))
 		check(os.MkdirAll(filepath.Dir(*out), 0o755))
 		check(in.WriteAllocation(*out, alloc))
+		met := in.Evaluate(alloc)
 		printHeader()
-		printRow(in, a.Name, in.Evaluate(alloc), ref, 0)
-		fmt.Printf("\nAllocation écrite : %s (à exécuter avec ./bin/orchestrator -alloc %s)\n", *out, *out)
+		printRow(in, a.Name, met, ref, 0)
+
+		// Seules les VM qui reçoivent des tâches doivent être démarrées.
+		var used []string
+		for j, s := range met.PerVM {
+			if s.Tasks > 0 {
+				used = append(used, in.Machines[j].Name)
+			}
+		}
+		fmt.Printf("\nAllocation écrite : %s\n", *out)
+		fmt.Printf("VM à démarrer     : VMS=\"%s\" ./scripts/manage_vms.sh start\n", strings.Join(used, " "))
+		fmt.Printf("Puis              : ./bin/orchestrator -alloc %s\n", *out)
 		return
 	}
 
