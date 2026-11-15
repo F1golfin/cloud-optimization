@@ -20,7 +20,7 @@ Mis à jour à chaque étape. Dernière mise à jour : 15/11/2026.
 | 4b. Expérience « workers » | ✅ | `scripts/exp_workers.sh`, `results/exp_workers/` |
 | 5a. Modèle + RR, MET, MCT, Min-Min, Max-Min | ✅ simulé | `scheduler/`, `data/tasks_*.csv`, `results/simulation/` |
 | 5b. Notre algorithme select-maxmin | ✅ simulé | `scheduler/algorithms/select.go` (§ 8) |
-| 6. Expériences réelles RR vs select-maxmin | ⬜ | |
+| 6. Expériences réelles RR vs select-maxmin | ✅ mesuré | `scripts/exp_real.sh`, `results/exp_real/` (§ 9) |
 | 7. Soutenance | ⬜ | |
 
 ---
@@ -418,7 +418,106 @@ contrainte de délai, l'algorithme choisirait un lot trop lent**. La contrainte
 
 ---
 
-## 9. Décisions prises
+## 9. Expériences réelles : RR contre select-maxmin sur GCP (MESURES)
+
+Commande : `./scripts/exp_real.sh` (15/11/2026), puis
+`LOTS="data/tasks_2000.csv" ./scripts/exp_real.sh`. Pour chaque lot : allocations
+et prédictions du scheduler, puis **3 exécutions réelles de chaque algorithme,
+alternées** (RR, select, RR, select…) pour qu'une dérive des VM dans le temps
+touche les deux de la même façon. Les 4 VM étaient allumées (RR les utilise
+toutes) ; select-maxmin n'a envoyé de tâches qu'aux VM qu'il avait choisies.
+Coût = même règle que le modèle (fenêtre active par VM, min. 60 s).
+S mesuré : référence = RR **mesuré** du même lot.
+Fichiers : `results/exp_real/<lot>/` (`summary.csv`, `runs.csv`, une exécution
+par fichier, allocations et prédictions).
+
+### Synthèse
+
+| Lot | Algo | Makespan mesuré (s) | Coût mesuré ($) | **S mesuré** | S prédit | VM utilisées |
+|---|---|---|---|---|---|---|
+| 9 tâches | RR | 1,12 ± 0,09 | 0,004272 | 1,000 | 1,000 | 4 |
+| | **select-maxmin** | 1,38 ± 0,15 | **0,001230** | **0,664** | 0,589 | 2 (2 × e2-medium) |
+| 500 tâches | RR | 52,2 ± 19,2 * | 0,004320 | 1,000 | 1,000 | 4 |
+| | **select-maxmin** | 55,8 ± 16,9 * | **0,003093** | **0,857** | 0,819 | 3 (sans vm1) |
+| 2000 tâches | RR | 333,6 ± 6,7 | 0,011819 | 1,000 | 1,000 | 4 |
+| | **select-maxmin** | **254,3 ± 2,8** | 0,011453 | **0,886** | 0,915 | 4 (= Max-Min) |
+
+\* écart-type élevé dû au ralentissement de vm3 (voir plus bas).
+
+**select-maxmin bat RR en conditions réelles sur les trois lots.**
+
+| Lot | Gain de coût | Effet sur le temps | Lecture |
+|---|---|---|---|
+| 9 tâches | **−71 %** | +23 % | 2 VM au lieu de 4 |
+| 500 tâches | **−29 %** | ≈ égal (répétition 1 : 41,4 s contre 41,5 s) | vm1 éteinte |
+| 2000 tâches | −3 % | **−24 %** | les 4 VM, meilleure répartition |
+
+Répétitions de 500 tâches, une par une :
+
+| Répétition | RR | select-maxmin |
+|---|---|---|
+| 1 | 41,4 s | 41,5 s |
+| 2 | 40,8 s | 51,4 s ⚠️ vm3 |
+| 3 | 74,3 s ⚠️ vm3 | 74,5 s ⚠️ vm3 |
+
+Sur la répétition 1 (aucune anomalie), S mesuré ≈ 0,83 pour 0,819 prédit.
+
+### Précision du modèle, VM par VM
+
+Fin de chaque VM, mesurée / prédite (médiane des 3 répétitions) :
+
+| Lot | Algo | highcpu | vm1 | vm2 | vm3 |
+|---|---|---|---|---|---|
+| 9 | RR | × 0,72 | × 0,89 | × 1,01 | × 0,93 |
+| 9 | select | — | — | × 0,92 | × 1,12 |
+| 500 | RR | × 1,02 | × 1,09 | × 0,92 | × 0,99 (puis 74 s) |
+| 500 | select | × 1,05 | — | × 0,95 | × 1,30 |
+| 2000 | RR | × 1,02 | × 1,09 | × 1,15 | **× 1,91** |
+| 2000 | select | × 1,05 | × 1,15 | × 0,96 | **× 1,87** |
+
+- **Hors vm3 dégradée, le modèle se trompe de −8 % à +15 %** (highcpu : +2 à +5 %
+  partout). Sur 9 tâches, les écarts plus grands sont normaux : 2 ou 3 tâches par VM.
+- Le makespan prédit dépend de la VM la plus lente : **une seule VM ralentie suffit à
+  fausser la prédiction du lot** (× 1,9 sur 2000 tâches).
+
+### Constat : vm3 a été ralentie d'un facteur ≈ 1,7–1,9
+
+Même type que vm2 (e2-medium), même charge, même session, mais :
+
+- 500 tâches : normale à la répétition 1, puis 51 s et 74 s au lieu de ≈ 40 s ;
+- 2000 tâches : ralentie **pendant toute la session**, de façon très régulière
+  (326, 337, 338 s pour RR contre 197 s sur vm2). Le **temps de calcul mesuré par les
+  workloads eux-mêmes** a doublé : ce n'est pas le réseau, c'est le processeur.
+
+**Hypothèses (non tranchées)** :
+
+1. *Bridage des VM à cœur partagé* : une e2-medium peut utiliser ses 2 vCPU par
+   rafales, mais en charge prolongée elle n'a droit qu'à l'équivalent d'environ
+   1 vCPU ; avec 2 workers, chaque tâche irait 2 × moins vite (≈ ce qui est observé).
+   Mais vm2, identique et autant chargée, n'a pas été ralentie.
+2. *Machine physique de vm3 surchargée* (« voisin bruyant ») : cohérent avec un
+   ralentissement constant limité à vm3.
+
+**Test pour trancher** : arrêter / redémarrer vm3 (elle peut changer d'hôte) puis
+`VMS="cloudopt-vm3" ./scripts/bench_vms.sh`.
+
+### Ce qu'on en retient
+
+1. **Le gain de select-maxmin se confirme en réel** : −71 % et −29 % de coût sur
+   les petits lots, −24 % de temps sur le gros, S mesuré entre 0,66 et 0,89.
+2. **Le modèle est fiable quand les VM tournent normalement** (≈ ±10 %), contre un
+   facteur 3 dans l'ancien rapport.
+3. **L'algorithme reste robuste à une VM ralentie** : même avec vm3 dégradée, il
+   bat RR, en partie parce qu'il charge moins vm3 (398 tâches au lieu de 500).
+4. **Limite principale : la variabilité du cloud.** Une VM « identique » peut être
+   1,9 × plus lente, et un planning calculé à l'avance ne s'y adapte pas. Pistes :
+   mesurer rapidement chaque VM juste avant de planifier ; ou laisser une VM qui
+   a fini prendre des tâches restantes d'une VM lente (*work stealing*), au prix
+   d'un écart au planning du scheduler.
+
+---
+
+## 10. Décisions prises
 
 | Décision | Raison |
 |---|---|
@@ -436,21 +535,25 @@ contrainte de délai, l'algorithme choisirait un lot trop lent**. La contrainte
 | Faire varier le nombre de tâches, pas la durée des tâches | Couvre les régimes < 60 s et > 60 s sans refaire le benchmark |
 | Ancienne V8 abandonnée, nouvel algorithme à concevoir | Les nouvelles mesures changent le problème (§ 7) |
 | select-maxmin : combinaisons de **types** de VM, Max-Min sur chacune | Choix des VM exact et explicable ; passe à l'échelle avec le nombre de types (§ 8) |
+| Expériences réelles alternées (RR, select, RR…) | Une dérive des VM pendant la session touche les deux algorithmes (§ 9) |
+| S mesuré calculé par rapport à RR mesuré | Compare les deux algorithmes dans les mêmes conditions réelles |
 
 ---
 
-## 10. Prochaines étapes
+## 11. Prochaines étapes
 
 1. ~~Expérience « workers »~~ : faite (§ 6).
 2. ~~Modèle + algorithmes classiques~~ : faits (§ 7).
 3. ~~Notre algorithme select-maxmin~~ : fait (§ 8).
-4. **Analyse de sensibilité** (optionnel) : `-wcost 0.8` et `-wcost 0.4` sur 500
-   et 2000 tâches, pour montrer que le choix des VM suit les priorités.
-5. **Expériences (étape 6)** : RR et select-maxmin exécutés sur GCP (9 et 500
-   tâches, éventuellement 2000), 3 répétitions, coût et makespan mesurés,
-   erreur prédit/réel. N'allumer que les VM choisies par l'algorithme.
+4. ~~Expériences réelles RR contre select-maxmin~~ : faites (§ 9).
+5. *(Recommandé)* Relancer 500 tâches avec des VM « reposées » pour 3 mesures
+   sans l'incident vm3 ; tester l'hypothèse sur vm3 (redémarrage + benchmark).
+6. *(Optionnel)* Analyse de sensibilité : `-wcost 0.8` / `0.4` sur 500 et 2000 tâches.
+7. **Soutenance** : rapport écrit, slides (schéma d'architecture, graphiques),
+   démo en direct (9 tâches, select-maxmin : seules vm2 et vm3 allumées), vidéo
+   de secours, répétition à trois.
 
-## 11. Règles
+## 12. Règles
 
 - Ne jamais présenter une durée simulée comme mesurée.
 - Toujours `./scripts/manage_vms.sh stop` après une session GCP.

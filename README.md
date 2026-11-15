@@ -170,6 +170,20 @@ Options du mode compare : `-csv <fichier>` (tableau), `-save-dir <dossier>`
 - Les sorties du scheduler sont des **prédictions** ; seules celles de
   l'orchestrateur sont des **mesures**.
 
+## Expérience réelle : RR contre select-maxmin
+
+```bash
+./scripts/manage_vms.sh start
+./scripts/exp_real.sh                              # 9 et 500 tâches, 3 répétitions alternées
+LOTS="data/tasks_2000.csv" ./scripts/exp_real.sh   # 2000 tâches
+./scripts/manage_vms.sh stop
+```
+
+Pour chaque lot : allocations et prédictions du scheduler, exécutions réelles
+alternées, puis `results/exp_real/<lot>/summary.csv` (makespan et coût mesurés,
+moyenne ± écart-type, S mesuré, erreur réel/prédit). Résultats et analyse :
+[docs/RESULTATS.md § 9](docs/RESULTATS.md).
+
 ## Responsabilité cloud
 
 Toujours arrêter les VM après les tests : `./scripts/manage_vms.sh stop`.
@@ -185,5 +199,5 @@ Aucune clé ni aucun fichier d'identifiants ne doit être commité.
 - [x] Étape 4 : orchestrateur Go (testé sur GCP, `results/run_rr.csv`)
 - [x] Étape 5a : modèle + RR, MET, MCT, Min-Min, Max-Min + mode compare
 - [x] Étape 5b : notre algorithme `select-maxmin` (simulé)
-- [ ] Étape 6 : expériences réelles RR vs V8
+- [x] Étape 6 : expériences réelles RR vs select-maxmin (9, 500, 2000 tâches)
 - [ ] Étape 7 : soutenance
