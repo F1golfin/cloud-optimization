@@ -19,7 +19,7 @@ LINUX_DIR  := bin/linux-amd64
 # -trimpath / -s -w -> binaires plus petits et reproductibles.
 GOFLAGS_BUILD := -trimpath -ldflags="-s -w"
 
-.PHONY: local linux tools all vet clean
+.PHONY: local linux tools all vet test clean
 
 # Par défaut : workloads locaux + outils de la machine de contrôle.
 local: tools
@@ -34,8 +34,10 @@ tools:
 	@mkdir -p bin
 	@echo "build bin/orchestrator"
 	@go build $(GOFLAGS_BUILD) -o bin/orchestrator ./orchestrator
-	@echo "build bin/roundrobin"
-	@go build $(GOFLAGS_BUILD) -o bin/roundrobin ./scheduler/roundrobin
+	@echo "build bin/scheduler"
+	@go build $(GOFLAGS_BUILD) -o bin/scheduler ./scheduler/cmd/scheduler
+	@echo "build bin/gentasks"
+	@go build $(GOFLAGS_BUILD) -o bin/gentasks ./scheduler/cmd/gentasks
 
 linux:
 	@mkdir -p $(LINUX_DIR)
@@ -48,6 +50,9 @@ all: local linux
 
 vet:
 	go vet ./...
+
+test:
+	go test ./...
 
 clean:
 	rm -rf bin/

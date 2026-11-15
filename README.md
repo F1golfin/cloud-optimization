@@ -38,7 +38,10 @@ tasks.csv + machines.csv + vm_performance.csv (mesures réelles)
 
 ```
 workloads/<nom>/main.go   les 4 workloads de référence (un dossier par programme)
-scheduler/                le(s) scheduler(s)
+orchestrator/             l'orchestrateur (exécution sur les VM via SSH)
+scheduler/model/          modèle commun : prédiction, simulation, coût, score S
+scheduler/algorithms/     RR, MET, MCT, Min-Min, Max-Min
+scheduler/cmd/            programmes scheduler et gentasks
 scripts/                  scripts gcloud (création/arrêt des VM, déploiement)
 data/                     entrées : tâches, machines, allocations, mesures
 results/                  sorties : benchmarks, résultats d'exécution
@@ -58,6 +61,7 @@ bin/                      binaires compilés (non versionnés, `make` les recré
 make          # binaires pour la machine locale -> bin/local/
 make linux    # binaires pour les VM GCP (linux/amd64) -> bin/linux-amd64/
 make vet      # vérification statique
+make test     # tests automatiques (modèle et algorithmes)
 ```
 
 Les VM GCP `e2-*` sont en **x86_64** : il faut leur envoyer les binaires de
@@ -132,17 +136,38 @@ Sorties :
 
 Le code retour est non nul si une tâche échoue ; les autres tâches continuent.
 
-## Modèle d'optimisation (résumé)
+## Scheduler
 
+```bash
+./bin/gentasks -n 500 -seed 42                       # -> data/tasks_500.csv (reproductible)
+./bin/scheduler -algo mct -tasks data/tasks_500.csv -out data/allocation_mct_500.csv
+./bin/scheduler -compare -tasks data/tasks_500.csv   # tous les algorithmes, même modèle
+./bin/scheduler -compare -tasks data/tasks_500.csv -exclude cloudopt-highcpu
+./bin/scheduler -compare -tasks data/tasks.csv -eval data/allocation_manual.csv
+```
+
+Algorithmes : `rr` (référence), `met`, `mct`, `minmin`, `maxmin`.
+Options du mode compare : `-csv <fichier>` (tableau), `-save-dir <dossier>`
+(allocation de chaque algorithme, directement exécutable par l'orchestrateur).
+
+### Modèle (package `scheduler/model`)
+
+- Durée prédite de la tâche i sur la VM j :
+  `p(i,j) = médiane du benchmark (data/vm_performance.csv) × contention(j) + 0,1 s`.
+  `contention` (colonne de `data/machines.csv`) = ralentissement mesuré quand
+  tous les workers de la VM tournent ; 0,1 s = surcoût SSH mesuré.
+- Simulation : chaque VM a autant de workers que de vCPU ; chaque tâche, dans
+  l'ordre de l'allocation, va au premier worker libre (comme l'orchestrateur).
+- Makespan `D` = fin de la dernière VM. Coût `C` = Σ max(60 s, temps de la VM)
+  × prix horaire, sur les VM utilisées.
 - Score : `S = 0,6 · C/C_RR + 0,4 · D/D_RR` (plus bas = mieux ; Round Robin = 1).
-  `C` = coût modélisé (facturation minimale de 60 s par VM active), `D` = makespan.
-- Contrainte : `D ≤ 1,25 · D_RR`, sinon la solution n'est pas admissible.
-- Les durées issues du simulateur sont des **prédictions** ; seules les sorties
-  de l'orchestrateur sont des **mesures**.
+- Contraintes : `D ≤ 1,25 · D_RR` (délai) et workers × plus grosse tâche ≤ RAM.
+- Les sorties du scheduler sont des **prédictions** ; seules celles de
+  l'orchestrateur sont des **mesures**.
 
 ## Responsabilité cloud
 
-Toujours arrêter les VM après les tests (le script sera ajouté à l'étape GCP).
+Toujours arrêter les VM après les tests : `./scripts/manage_vms.sh stop`.
 Aucune clé ni aucun fichier d'identifiants ne doit être commité.
 
 ## Avancement
@@ -153,6 +178,7 @@ Aucune clé ni aucun fichier d'identifiants ne doit être commité.
 - [x] Étape 2 : benchmark local
 - [x] Étape 3 : VM GCP + benchmark sur chaque VM (`data/vm_performance.csv`)
 - [x] Étape 4 : orchestrateur Go (testé sur GCP, `results/run_rr.csv`)
-- [ ] Étape 5 : schedulers (RR, MET, MCT, Min-Min, Max-Min, V8)
+- [x] Étape 5a : modèle + RR, MET, MCT, Min-Min, Max-Min + mode compare
+- [ ] Étape 5b : nouvel algorithme optimisé (à concevoir)
 - [ ] Étape 6 : expériences réelles RR vs V8
 - [ ] Étape 7 : soutenance

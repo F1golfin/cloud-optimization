@@ -18,8 +18,9 @@ Mis à jour à chaque étape. Dernière mise à jour : 15/11/2026.
 | 3. VM GCP + benchmark par VM | ✅ | `scripts/{config,manage_vms,deploy,bench_vms}.sh`, `data/vm_performance.csv` |
 | 4. Orchestrateur Go | ✅ testé sur GCP | `orchestrator/main.go`, `results/run_rr*.csv` |
 | 4b. Expérience « workers » | ✅ | `scripts/exp_workers.sh`, `results/exp_workers/` |
-| 5. Schedulers (RR, MET, MCT, Min-Min, Max-Min, V8) | ⬜ | RR seul existe (`scheduler/roundrobin`) |
-| 6. Expériences réelles RR vs V8 | ⬜ | |
+| 5a. Modèle + RR, MET, MCT, Min-Min, Max-Min | ✅ simulé | `scheduler/`, `data/tasks_*.csv`, `results/simulation/` |
+| 5b. Nouvel algorithme optimisé | ⬜ à concevoir | (§ 7) |
+| 6. Expériences réelles RR vs nouvel algorithme | ⬜ | |
 | 7. Soutenance | ⬜ | |
 
 ---
@@ -28,7 +29,8 @@ Mis à jour à chaque étape. Dernière mise à jour : 15/11/2026.
 
 ```bash
 git clone git@github.com:F1golfin/cloud-optimization.git && cd cloud-optimization
-make                                      # workloads locaux + bin/orchestrator + bin/roundrobin
+make                                      # workloads locaux + bin/orchestrator, bin/scheduler, bin/gentasks
+make test                                 # tests du modèle et des algorithmes
 ./bin/orchestrator -local -alloc data/allocation_rr.csv -out /tmp/test.csv   # test sans GCP
 ```
 
@@ -223,7 +225,108 @@ petites tâches), alors que `runtime_s` ne mesure que le calcul.
 
 ---
 
-## 7. Décisions prises
+## 7. Scheduler : comparaison des algorithmes classiques (SIMULATION)
+
+> ⚠️ Toute cette section est **prédite par le modèle**, rien n'a été exécuté
+> sur GCP. Les mesures réelles viendront à l'étape 6.
+
+### Modèle (`scheduler/model`)
+
+- Durée prédite : `p(i,j) = médiane benchmark × contention(j) + 0,10 s`, avec
+  `contention` = 1,40 (vm1, vm2, vm3) et 1,32 (highcpu), colonne de
+  `data/machines.csv` (§ 6).
+- Simulation identique à l'orchestrateur : workers = vCPU, chaque tâche va au
+  premier worker libre, dans l'ordre de l'allocation.
+- `D` = fin de la dernière VM ; `C` = Σ max(60 s, temps de la VM) × prix, sur les
+  VM utilisées ; `S = 0,6·C/C_RR + 0,4·D/D_RR` ; admissible si `D ≤ 1,25·D_RR`
+  et RAM respectée.
+- **Validation** : appliqué au lot RR réellement exécuté (§ 5), le modèle
+  prédit 1,22 s pour 1,32 s mesurées (réel/prédit = 1,08). Le modèle naïf
+  (médiane seule, sans contention ni SSH) se trompait d'un facteur 1,65.
+  Ce contrôle est un test automatique (`TestPredictionMatchesRealRun`).
+
+### Lots
+
+Générés par `./bin/gentasks -n N -seed 42` : chaque tâche est tirée au hasard,
+de façon uniforme, parmi les 12 combinaisons mesurées. Avec la même graine, tout
+le monde obtient le même fichier. `data/tasks_{20,100,500,2000}.csv`.
+
+### Résultats (`results/simulation/compare_*.csv`)
+
+**500 tâches, 4 VM** — limite de délai 50,6 s :
+
+| Algo | Coût ($) | Makespan (s) | S | Admissible | Tâches vm1/vm2/vm3/highcpu |
+|---|---|---|---|---|---|
+| RR | 0,004272 | 40,5 | 1,000 | oui | 125 / 125 / 125 / 125 |
+| MET | 0,003657 | 51,9 | 1,026 | **non** | 43 / 0 / 92 / 365 |
+| MCT | 0,004272 | 32,5 | 0,921 | oui | 100 / 120 / 104 / 176 |
+| Min-Min | 0,004272 | 32,1 | 0,917 | oui | 100 / 96 / 100 / 204 |
+| **Max-Min** | 0,004272 | **31,8** | **0,914** | oui | 100 / 96 / 100 / 204 |
+
+**500 tâches, sans highcpu** — limite 68,1 s : tous les algorithmes font comme
+RR (S entre 0,995 et 0,999 ; MET non admissible, 124,8 s). Les 3 VM restantes ont
+la même vitesse et le même nombre de workers : RR, qui répartit le même nombre de
+tâches tirées au hasard, est déjà presque équilibré.
+
+**2000 tâches, 4 VM** — limite 220,5 s :
+
+| Algo | Coût ($) | Makespan (s) | S | Admissible | Tâches vm1/vm2/vm3/highcpu |
+|---|---|---|---|---|---|
+| RR | 0,009591 | 176,4 | 1,000 | oui | 500 / 500 / 500 / 500 |
+| MET | 0,009976 | 236,2 | 1,160 | **non** | 183 / 0 / 333 / 1484 |
+| MCT | 0,009701 | 137,1 | 0,918 | oui | 419 / 478 / 423 / 680 |
+| Min-Min | 0,009734 | 136,9 | 0,919 | oui | 398 / 387 / 398 / 817 |
+| **Max-Min** | 0,009687 | **136,1** | **0,915** | oui | 397 / 388 / 398 / 817 |
+
+**9 tâches (lot du TD3) avec l'allocation manuelle** — limite 1,52 s :
+
+| Algo | Coût ($) | Makespan (s) | S | VM utilisées |
+|---|---|---|---|---|
+| RR | 0,004272 | 1,216 | 1,000 | 4 |
+| MET | 0,002428 | 1,326 | 0,778 | 2 |
+| MCT / Max-Min | 0,004272 | 1,211 | 0,998 | 4 |
+| Min-Min | 0,004272 | 1,296 | 1,026 | 4 |
+| **Manuelle (TD3)** | **0,002458** | 1,216 | **0,745** | 3 (sans highcpu) |
+
+Temps de calcul du scheduler : < 40 ms pour tous les algorithmes, même à 2000 tâches.
+
+### Constats
+
+1. **Les heuristiques classiques optimisent le temps, pas notre objectif.**
+   MCT, Min-Min et Max-Min réduisent le makespan d'environ 20 % (500 tâches) et
+   22 % (2000 tâches), en envoyant plus de tâches sur highcpu (4 workers). Max-Min
+   est le meilleur des algorithmes classiques dans tous les cas (S ≈ 0,91).
+2. **Mais elles allument toujours les 4 VM.** Sous 60 s de lot, le coût ne dépend
+   que des VM allumées : il reste identique à RR (0,004272 $). Sur 9 tâches,
+   l'allocation manuelle du TD3 bat tous les algorithmes (S = 0,745) simplement
+   parce qu'elle n'allume pas highcpu (qui n'existait pas encore au TD3).
+3. **Au-delà de 60 s, équilibrer coûte un peu plus cher** (2000 tâches : +1 %) :
+   avec RR, highcpu finit tôt et s'éteint ; équilibré, la VM la plus chère tourne
+   plus longtemps.
+4. **MET n'est jamais admissible sur les gros lots** : les VM ayant presque la
+   même vitesse, choisir la plus rapide tâche par tâche empile tout sur une seule.
+5. **Sans highcpu, il n'y a presque rien à gagner en répartition** : les VM
+   restantes sont identiques. Cela contredit l'ancien rapport, où les gains sans
+   HighCPU venaient de mesures de VM différentes.
+
+### Ce que doit faire le nouvel algorithme (étape 5b)
+
+Le gain restant ne vient pas de la répartition fine (Max-Min la fait déjà bien)
+mais du **choix des VM à allumer** et de **sur quelle VM faire tourner le travail** :
+
+- sous 60 s de lot, chaque VM allumée coûte sa minute : remplir la minute déjà
+  payée avant d'en allumer une autre ;
+- au-delà, chaque seconde coûte au prix de la VM : privilégier vm2/vm3 (le
+  travail le moins cher), highcpu pour le délai, éviter vm1 (dominée, § 6).
+
+Piste simple : avec 4 VM, il n'y a que 15 ensembles de VM possibles ; pour chacun,
+répartir avec Max-Min, puis garder le meilleur S admissible.
+**Estimations faites à la main (à confirmer par l'algorithme)** : sans vm1,
+S ≈ 0,82 sur 500 tâches et ≈ 0,90 sur 2000 tâches, contre 0,914 et 0,915 pour Max-Min.
+
+---
+
+## 8. Décisions prises
 
 | Décision | Raison |
 |---|---|
@@ -236,20 +339,23 @@ petites tâches), alors que `runtime_s` ne mesure que le calcul.
 | Workers par VM = nombre de vCPU | Débit maximal mesuré (§ 6) ; au-delà, aucun gain |
 | Attente de SSH au démarrage (~2 min max) | Une VM `RUNNING` n'accepte pas encore les connexions |
 | Relevé du modèle de processeur à chaque lot | Le CPU d'une VM e2 peut changer entre deux démarrages (§ 6) |
+| Un seul modèle pour tous les algorithmes | Comparaison équitable ; validé sur le lot réel (§ 7) |
+| Lots générés avec une graine fixe | Reproductibles par toute l'équipe |
+| Faire varier le nombre de tâches, pas la durée des tâches | Couvre les régimes < 60 s et > 60 s sans refaire le benchmark |
+| Ancienne V8 abandonnée, nouvel algorithme à concevoir | Les nouvelles mesures changent le problème (§ 7) |
 
 ---
 
-## 8. Prochaines étapes
+## 9. Prochaines étapes
 
 1. ~~Expérience « workers »~~ : faite (§ 6).
-2. **Scheduler (étape 5)** : modèle de prédiction = médiane du benchmark ×
-   facteur de contention + surcoût SSH mesuré (§ 6) ; implémenter MET, MCT,
-   Min-Min, Max-Min et V8 (recherche locale qui minimise directement
-   `S = 0,6·C/C_RR + 0,4·D/D_RR` sous `D ≤ 1,25·D_RR`).
-3. **Expériences (étape 6)** : lots plus gros (makespan ≥ 60 s), RR vs V8,
-   3 répétitions, erreur prédit vs réel.
+2. ~~Modèle + algorithmes classiques~~ : faits (§ 7).
+3. **Nouvel algorithme (étape 5b)** : choisir les VM à allumer puis répartir,
+   en minimisant directement `S` sous `D ≤ 1,25·D_RR` (§ 7).
+4. **Expériences (étape 6)** : RR et le nouvel algorithme exécutés sur GCP
+   (500 et 2000 tâches), 3 répétitions, coût et makespan mesurés, erreur prédit/réel.
 
-## 9. Règles
+## 10. Règles
 
 - Ne jamais présenter une durée simulée comme mesurée.
 - Toujours `./scripts/manage_vms.sh stop` après une session GCP.
