@@ -38,6 +38,13 @@ Optional:
 ./memory_task --size 256 --passes 10
 ```
 
+> **Modification du groupe (14/11)** : la valeur par défaut de `--passes` est passée de 5 à **60**.
+> Avec 5 passes, la durée de `memory_task` est proportionnelle à la RAM allouée : il aurait fallu
+> plusieurs Go pour dépasser quelques secondes, plus que la RAM d'une e2-medium (4 Go).
+> Avec 60 passes, `--size` reste la RAM allouée (la contrainte de capacité) et la tâche dure
+> environ 5 à 20 s sur une VM. Le calcul effectué ne change pas de nature ; seul le nombre de
+> parcours augmente. Le format des tâches (`task_id,workload,size`) reste inchangé.
+
 ## 3. Matrix workload
 
 Naive dense matrix multiplication.

@@ -5,6 +5,11 @@
 # ici sont les MÊMES que ceux écrits par le scheduler dans allocation.csv et
 # lus par l'orchestrateur.
 
+# Chaque membre du groupe peut utiliser son propre projet GCP : créer
+# scripts/config.local.sh (non commité) contenant par exemple
+#   PROJECT="mon-projet-123"
+[[ -f "$(dirname "${BASH_SOURCE[0]}")/config.local.sh" ]] && source "$(dirname "${BASH_SOURCE[0]}")/config.local.sh"
+
 PROJECT="${PROJECT:-cloud-opt-511106}"
 ZONE="${ZONE:-europe-west1-b}"
 

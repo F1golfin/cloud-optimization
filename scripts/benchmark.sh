@@ -20,8 +20,8 @@
 #
 # Variables d'environnement :
 #   BIN_DIR        dossier des binaires (défaut : bin/local, créé par `make`)
-#   MIN_RUNTIME_S  durée en dessous de laquelle une mesure est signalée « courte » (défaut : 0.5)
-#   MAX_RUNTIME_S  durée au-delà de laquelle une mesure est signalée « longue » (défaut : 10)
+#   MIN_RUNTIME_S  durée en dessous de laquelle une mesure est signalée « courte » (défaut : 3)
+#   MAX_RUNTIME_S  durée au-delà de laquelle une mesure est signalée « longue » (défaut : 40)
 #
 # Sortie : une ligne par exécution  machine,workload,size,run,runtime_s,max_rss_kb
 #   runtime_s  = temps réel (wall-clock) de l'exécution, en secondes
@@ -30,8 +30,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BIN_DIR="${BIN_DIR:-bin/local}"
-MIN_RUNTIME_S="${MIN_RUNTIME_S:-0.5}"
-MAX_RUNTIME_S="${MAX_RUNTIME_S:-10}"
+MIN_RUNTIME_S="${MIN_RUNTIME_S:-3}"
+MAX_RUNTIME_S="${MAX_RUNTIME_S:-40}"
 MACHINE="$(hostname -s)"
 OUT=""
 RUNS=5
@@ -50,22 +50,27 @@ APPEND=0
 # ---------------------------------------------------------------------------
 WORKLOADS="cpu_task memory_task matrix_task sort_task"
 
+#
+# Tailles agrandies le 14/11 : avec les tailles du TD1 (≤ 1,5 s sur VM), le
+# temps de connexion SSH (2-5 s) écrasait la durée des tâches. Cible : environ
+# 5 / 10 / 20 s par tâche sur une VM E2. memory_task utilise --passes 60 par
+# défaut (au lieu de 5) pour que sa durée ne soit pas limitée par la RAM.
 sizes_of() {
     case "$1" in
-        cpu_task)    echo "200000 500000 1000000" ;;     # entier max testé
-        memory_task) echo "128 256 512" ;;               # Mo alloués
-        matrix_task) echo "200 400 600" ;;               # dimension N (NxN)
-        sort_task)   echo "1000000 5000000 10000000" ;;  # nb d'entiers
+        cpu_task)    echo "6000000 10000000 15000000" ;;     # entier max testé
+        memory_task) echo "256 512 1024" ;;                  # Mo alloués (60 passes)
+        matrix_task) echo "1200 1600 2000" ;;                # dimension N (NxN)
+        sort_task)   echo "25000000 50000000 100000000" ;;   # nb d'entiers (~0,8 Go à 100M)
         *) return 1 ;;
     esac
 }
 
 bounds_of() {   # affiche "MIN MAX"
     case "$1" in
-        cpu_task)    echo "100000 2000000" ;;
-        memory_task) echo "32 1024" ;;      # e2-medium = 4 Go de RAM
-        matrix_task) echo "100 1000" ;;
-        sort_task)   echo "250000 20000000" ;;
+        cpu_task)    echo "100000 30000000" ;;
+        memory_task) echo "32 2048" ;;      # e2-medium = 4 Go de RAM
+        matrix_task) echo "100 3000" ;;
+        sort_task)   echo "250000 150000000" ;;
         *) return 1 ;;
     esac
 }

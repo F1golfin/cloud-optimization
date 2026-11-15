@@ -21,7 +21,7 @@ type Result struct {
 // the allocated memory. This creates a workload dominated by memory access.
 func main() {
 	sizeMB := flag.Int("size", 256, "memory size to allocate, in MB")
-	passes := flag.Int("passes", 5, "number of passes over the allocated memory")
+	passes := flag.Int("passes", 60, "number of passes over the allocated memory")
 	flag.Parse()
 
 	if *sizeMB <= 0 {

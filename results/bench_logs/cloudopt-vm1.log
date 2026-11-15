@@ -1,79 +1,79 @@
 Machine : cloudopt-vm1 (Linux x86_64, 2 CPU logiques) | runs=5 | binaires=bin -> results/benchmark_cloudopt-vm1.csv
-  cpu_task     size=200000   run=1    0.0462s      2372 Ko  (court : < 0.5s)
-  cpu_task     size=200000   run=2    0.0455s      2500 Ko  (court : < 0.5s)
-  cpu_task     size=200000   run=3    0.0453s      2500 Ko  (court : < 0.5s)
-  cpu_task     size=200000   run=4    0.0453s      2500 Ko  (court : < 0.5s)
-  cpu_task     size=200000   run=5    0.0454s      2372 Ko  (court : < 0.5s)
-  cpu_task     size=500000   run=1    0.1476s      2500 Ko  (court : < 0.5s)
-  cpu_task     size=500000   run=2    0.1485s      2316 Ko  (court : < 0.5s)
-  cpu_task     size=500000   run=3    0.1478s      2372 Ko  (court : < 0.5s)
-  cpu_task     size=500000   run=4    0.1477s      2500 Ko  (court : < 0.5s)
-  cpu_task     size=500000   run=5    0.1474s      2372 Ko  (court : < 0.5s)
-  cpu_task     size=1000000  run=1    0.3778s      2372 Ko  (court : < 0.5s)
-  cpu_task     size=1000000  run=2    0.3780s      2500 Ko  (court : < 0.5s)
-  cpu_task     size=1000000  run=3    0.3779s      2372 Ko  (court : < 0.5s)
-  cpu_task     size=1000000  run=4    0.3771s      2372 Ko  (court : < 0.5s)
-  cpu_task     size=1000000  run=5    0.3778s      2372 Ko  (court : < 0.5s)
-  memory_task  size=128      run=1    0.2153s    133836 Ko  (court : < 0.5s)
-  memory_task  size=128      run=2    0.1985s    133836 Ko  (court : < 0.5s)
-  memory_task  size=128      run=3    0.2041s    133964 Ko  (court : < 0.5s)
-  memory_task  size=128      run=4    0.2055s    133964 Ko  (court : < 0.5s)
-  memory_task  size=128      run=5    0.2064s    133836 Ko  (court : < 0.5s)
-  memory_task  size=256      run=1    0.4062s    265164 Ko  (court : < 0.5s)
-  memory_task  size=256      run=2    0.4059s    265036 Ko  (court : < 0.5s)
-  memory_task  size=256      run=3    0.3964s    265164 Ko  (court : < 0.5s)
-  memory_task  size=256      run=4    0.4076s    265164 Ko  (court : < 0.5s)
-  memory_task  size=256      run=5    0.3958s    265164 Ko  (court : < 0.5s)
-  memory_task  size=512      run=1    0.7987s    527436 Ko
-  memory_task  size=512      run=2    0.8008s    527436 Ko
-  memory_task  size=512      run=3    0.7898s    527436 Ko
-  memory_task  size=512      run=4    0.7968s    527308 Ko
-  memory_task  size=512      run=5    0.7917s    527436 Ko
-  matrix_task  size=200      run=1    0.0185s      3400 Ko  (court : < 0.5s)
-  matrix_task  size=200      run=2    0.0186s      3528 Ko  (court : < 0.5s)
-  matrix_task  size=200      run=3    0.0184s      3400 Ko  (court : < 0.5s)
-  matrix_task  size=200      run=4    0.0184s      3400 Ko  (court : < 0.5s)
-  matrix_task  size=200      run=5    0.0182s      3400 Ko  (court : < 0.5s)
-  matrix_task  size=400      run=1    0.1000s      6316 Ko  (court : < 0.5s)
-  matrix_task  size=400      run=2    0.1010s      6344 Ko  (court : < 0.5s)
-  matrix_task  size=400      run=3    0.1011s      6344 Ko  (court : < 0.5s)
-  matrix_task  size=400      run=4    0.1007s      6344 Ko  (court : < 0.5s)
-  matrix_task  size=400      run=5    0.1016s      6344 Ko  (court : < 0.5s)
-  matrix_task  size=600      run=1    0.3196s     11080 Ko  (court : < 0.5s)
-  matrix_task  size=600      run=2    0.3177s     11208 Ko  (court : < 0.5s)
-  matrix_task  size=600      run=3    0.3214s     11208 Ko  (court : < 0.5s)
-  matrix_task  size=600      run=4    0.3205s     11080 Ko  (court : < 0.5s)
-  matrix_task  size=600      run=5    0.3203s     11080 Ko  (court : < 0.5s)
-  sort_task    size=1000000  run=1    0.1367s     10448 Ko  (court : < 0.5s)
-  sort_task    size=1000000  run=2    0.1377s     10320 Ko  (court : < 0.5s)
-  sort_task    size=1000000  run=3    0.1373s     10448 Ko  (court : < 0.5s)
-  sort_task    size=1000000  run=4    0.1369s     10448 Ko  (court : < 0.5s)
-  sort_task    size=1000000  run=5    0.1364s     10420 Ko  (court : < 0.5s)
-  sort_task    size=5000000  run=1    0.7195s     41552 Ko
-  sort_task    size=5000000  run=2    0.7229s     41680 Ko
-  sort_task    size=5000000  run=3    0.7195s     41528 Ko
-  sort_task    size=5000000  run=4    0.7186s     41808 Ko
-  sort_task    size=5000000  run=5    0.7248s     41552 Ko
-  sort_task    size=10000000 run=1    1.4926s     80848 Ko
-  sort_task    size=10000000 run=2    1.4985s     80976 Ko
-  sort_task    size=10000000 run=3    1.5003s     80848 Ko
-  sort_task    size=10000000 run=4    1.5020s     80848 Ko
-  sort_task    size=10000000 run=5    1.4962s     80720 Ko
+  cpu_task     size=6000000  run=1    4.6706s      2504 Ko
+  cpu_task     size=6000000  run=2    4.6610s      2248 Ko
+  cpu_task     size=6000000  run=3    4.6571s      2248 Ko
+  cpu_task     size=6000000  run=4    4.6504s      2376 Ko
+  cpu_task     size=6000000  run=5    4.6524s      2376 Ko
+  cpu_task     size=10000000 run=1    9.5928s      2248 Ko
+  cpu_task     size=10000000 run=2    9.5820s      2504 Ko
+  cpu_task     size=10000000 run=3    9.5997s      2376 Ko
+  cpu_task     size=10000000 run=4    9.5903s      2504 Ko
+  cpu_task     size=10000000 run=5    9.6008s      2248 Ko
+  cpu_task     size=15000000 run=1   17.0434s      2504 Ko
+  cpu_task     size=15000000 run=2   17.0576s      2376 Ko
+  cpu_task     size=15000000 run=3   17.0439s      2376 Ko
+  cpu_task     size=15000000 run=4   17.0697s      2504 Ko
+  cpu_task     size=15000000 run=5   17.0430s      2504 Ko
+  memory_task  size=256      run=1    2.5021s    265036 Ko  (court : < 3s)
+  memory_task  size=256      run=2    2.4908s    264908 Ko  (court : < 3s)
+  memory_task  size=256      run=3    2.5087s    264908 Ko  (court : < 3s)
+  memory_task  size=256      run=4    2.4935s    264908 Ko  (court : < 3s)
+  memory_task  size=256      run=5    2.5151s    264908 Ko  (court : < 3s)
+  memory_task  size=512      run=1    4.9564s    527308 Ko
+  memory_task  size=512      run=2    4.9951s    527564 Ko
+  memory_task  size=512      run=3    4.9719s    527436 Ko
+  memory_task  size=512      run=4    4.9760s    527436 Ko
+  memory_task  size=512      run=5    4.9688s    527408 Ko
+  memory_task  size=1024     run=1    9.8833s   1052236 Ko
+  memory_task  size=1024     run=2    9.8914s   1052492 Ko
+  memory_task  size=1024     run=3    9.8508s   1052492 Ko
+  memory_task  size=1024     run=4    9.8352s   1052492 Ko
+  memory_task  size=1024     run=5    9.9011s   1052492 Ko
+  matrix_task  size=1200     run=1    2.7719s     36552 Ko  (court : < 3s)
+  matrix_task  size=1200     run=2    2.7297s     36680 Ko  (court : < 3s)
+  matrix_task  size=1200     run=3    2.7485s     36424 Ko  (court : < 3s)
+  matrix_task  size=1200     run=4    2.7339s     36424 Ko  (court : < 3s)
+  matrix_task  size=1200     run=5    2.7427s     36552 Ko  (court : < 3s)
+  matrix_task  size=1600     run=1    6.6901s     62792 Ko
+  matrix_task  size=1600     run=2    6.6720s     62792 Ko
+  matrix_task  size=1600     run=3    6.6612s     62792 Ko
+  matrix_task  size=1600     run=4    6.7047s     62792 Ko
+  matrix_task  size=1600     run=5    6.7118s     62792 Ko
+  matrix_task  size=2000     run=1   13.0825s     96584 Ko
+  matrix_task  size=2000     run=2   13.0237s     96584 Ko
+  matrix_task  size=2000     run=3   13.0425s     96584 Ko
+  matrix_task  size=2000     run=4   13.0945s     96584 Ko
+  matrix_task  size=2000     run=5   13.1330s     96328 Ko
+  sort_task    size=25000000 run=1    3.9714s    198096 Ko
+  sort_task    size=25000000 run=2    3.9245s    197968 Ko
+  sort_task    size=25000000 run=3    3.9006s    198224 Ko
+  sort_task    size=25000000 run=4    3.9050s    198096 Ko
+  sort_task    size=25000000 run=5    3.9007s    198224 Ko
+  sort_task    size=50000000 run=1    8.0684s    393552 Ko
+  sort_task    size=50000000 run=2    8.0800s    393552 Ko
+  sort_task    size=50000000 run=3    8.0818s    393680 Ko
+  sort_task    size=50000000 run=4    8.0888s    393552 Ko
+  sort_task    size=50000000 run=5    8.0624s    393808 Ko
+  sort_task    size=100000000 run=1   16.5439s    786640 Ko
+  sort_task    size=100000000 run=2   16.5356s    784592 Ko
+  sort_task    size=100000000 run=3   16.5194s    786768 Ko
+  sort_task    size=100000000 run=4   16.5078s    786896 Ko
+  sort_task    size=100000000 run=5   16.5086s    784720 Ko
 
 Résumé (calculé à partir des mesures brutes de results/benchmark_cloudopt-vm1.csv) :
 workload          size runs    moy(s)  écart(s)    min(s)    max(s)    cv%   RSS(Mo)
-cpu_task        200000    5    0.0455    0.0004    0.0453    0.0462    0.8       2.4  court
-cpu_task        500000    5    0.1478    0.0004    0.1474    0.1485    0.3       2.4  court
-cpu_task       1000000    5    0.3777    0.0003    0.3771    0.3780    0.1       2.3  court
-memory_task        128    5    0.2060    0.0061    0.1985    0.2153    2.9     130.7  court
-memory_task        256    5    0.4024    0.0058    0.3958    0.4076    1.4     258.9  court
-memory_task        512    5    0.7956    0.0047    0.7898    0.8008    0.6     515.0
-matrix_task        200    5    0.0184    0.0001    0.0182    0.0186    0.8       3.3  court
-matrix_task        400    5    0.1009    0.0006    0.1000    0.1016    0.6       6.2  court
-matrix_task        600    5    0.3199    0.0014    0.3177    0.3214    0.4      10.9  court
-sort_task      1000000    5    0.1370    0.0005    0.1364    0.1377    0.4      10.2  court
-sort_task      5000000    5    0.7211    0.0026    0.7186    0.7248    0.4      40.6
-sort_task     10000000    5    1.4979    0.0037    1.4926    1.5020    0.2      79.0
+cpu_task       6000000    5    4.6583    0.0080    4.6504    4.6706    0.2       2.3
+cpu_task      10000000    5    9.5931    0.0076    9.5820    9.6008    0.1       2.3
+cpu_task      15000000    5   17.0515    0.0119   17.0430   17.0697    0.1       2.4
+memory_task        256    5    2.5020    0.0102    2.4908    2.5151    0.4     258.7  court
+memory_task        512    5    4.9737    0.0141    4.9564    4.9951    0.3     515.1
+memory_task       1024    5    9.8723    0.0281    9.8352    9.9011    0.3    1027.8
+matrix_task       1200    5    2.7453    0.0166    2.7297    2.7719    0.6      35.7  court
+matrix_task       1600    5    6.6879    0.0214    6.6612    6.7118    0.3      61.3
+matrix_task       2000    5   13.0752    0.0433   13.0237   13.1330    0.3      94.3
+sort_task     25000000    5    3.9204    0.0301    3.9006    3.9714    0.8     193.5
+sort_task     50000000    5    8.0763    0.0107    8.0624    8.0888    0.1     384.4
+sort_task    100000000    5   16.5231    0.0162   16.5078   16.5439    0.1     767.5
 
-Note : 45 exécution(s) sous 0.5s sur cloudopt-vm1. Normal sur une machine rapide ;
+Note : 10 exécution(s) sous 3s sur cloudopt-vm1. Normal sur une machine rapide ;
        ce sont les durées sur les VM GCP qui servent à calibrer les tailles.

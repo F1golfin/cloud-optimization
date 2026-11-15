@@ -14,3 +14,9 @@ docs/*.pdf
 *-key.json
 credentials*.json
 .env
+
+# Réglages locaux de Claude Code (chemins propres à cette machine)
+.claude/settings.local.json
+
+# Réglage GCP propre à chaque membre (projet personnel)
+scripts/config.local.sh
