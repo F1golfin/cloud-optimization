@@ -1,0 +1,3 @@
+algo,runs,makespan_mean_s,makespan_std_s,cost_mean_usd,cost_std_usd,score_measured,makespan_predicted_s,cost_predicted_usd,score_predicted,makespan_real_over_pred
+rr,3,342.083,98.093,0.012677,0.003000,1.0000,176.400,0.009591,1.0000,1.939
+select-maxmin,3,224.754,66.355,0.010885,0.000838,0.7780,136.086,0.009687,0.9146,1.652

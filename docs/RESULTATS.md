@@ -480,7 +480,7 @@ Fin de chaque VM, mesurée / prédite (médiane des 3 répétitions) :
 - Le makespan prédit dépend de la VM la plus lente : **une seule VM ralentie suffit à
   fausser la prédiction du lot** (× 1,9 sur 2000 tâches).
 
-### Constat : vm3 a été ralentie d'un facteur ≈ 1,7–1,9
+### Constat : vm3 a été ralentie d'un facteur ≈ 1,7–1,9 (session 1)
 
 Même type que vm2 (e2-medium), même charge, même session, mais :
 
@@ -489,31 +489,75 @@ Même type que vm2 (e2-medium), même charge, même session, mais :
   (326, 337, 338 s pour RR contre 197 s sur vm2). Le **temps de calcul mesuré par les
   workloads eux-mêmes** a doublé : ce n'est pas le réseau, c'est le processeur.
 
-**Hypothèses (non tranchées)** :
+Deux hypothèses au départ : (1) *bridage des VM à cœur partagé* (une e2-medium
+peut utiliser ses 2 vCPU par rafales, mais n'a droit en moyenne qu'à une part du
+processeur) ; (2) *machine physique de vm3 défaillante* (« voisin bruyant »).
+Pour trancher, nous avons **remplacé vm3** (suppression puis recréation : nouvel
+identifiant, probablement un autre hôte) et refait des mesures.
 
-1. *Bridage des VM à cœur partagé* : une e2-medium peut utiliser ses 2 vCPU par
-   rafales, mais en charge prolongée elle n'a droit qu'à l'équivalent d'environ
-   1 vCPU ; avec 2 workers, chaque tâche irait 2 × moins vite (≈ ce qui est observé).
-   Mais vm2, identique et autant chargée, n'a pas été ralentie.
-2. *Machine physique de vm3 surchargée* (« voisin bruyant ») : cohérent avec un
-   ralentissement constant limité à vm3.
+### Investigation : remplacement de vm3 et sessions supplémentaires
 
-**Test pour trancher** : arrêter / redémarrer vm3 (elle peut changer d'hôte) puis
-`VMS="cloudopt-vm3" ./scripts/bench_vms.sh`.
+**a) Nouvelle vm3, charge courte (≈ 2 min)** — `results/session_vm3_neuve/` :
+benchmark proche du premier (+3 à +9 %) et expérience workers identique à vm2
+(débit 2,16 / 2,94 / 3,07 tâches/s pour 1 / 2 / 4 workers, contre 2,00 / 2,85 /
+3,09 pour vm2), sans dégradation sur 9 exécutions. Pendant cette session, c'est
+**vm2** qui était un peu plus lente et plus irrégulière que d'habitude (cpu_task
++19 %, écarts-types de 3 à 10 % au lieu de < 1 %).
+
+**b) Trois sessions de 2000 tâches** (makespan en secondes) :
+
+| Session | VM3 | RR r1 / r2 / r3 | select-maxmin r1 / r2 / r3 |
+|---|---|---|---|
+| 1 (`tasks_2000`) | ancienne | 325,9 / 336,9 / 338,2 | 256,8 / 254,6 / 251,3 |
+| 2 (`tasks_2000_session2`) | ancienne | 241,5 / 340,9 / 339,4 | 255,5 / 253,7 / 256,2 |
+| 3 (`tasks_2000_vm3neuve`) | **nouvelle** | 241,4 / 347,6 / ~~437,3~~ † | 263,9 / 262,2 / **148,1** |
+
+† *RR r3 de la session 3 est exclue* : le surcoût SSH a bondi en même temps sur les
+4 VM (0,5 à 1,0 s par tâche au lieu de ≈ 0,11 s) alors que le temps de calcul de
+highcpu était normal. Le problème venait de la machine de contrôle ou du réseau
+(veille du Mac, Wi-Fi…), pas des VM.
+
+**c) La nouvelle vm3 se comporte comme l'ancienne** sous charge prolongée : 1,5 à
+2 × plus lente que vm2 pendant plusieurs exécutions (temps de calcul sur vm3 :
+401 à 578 s contre ≈ 220 à 330 s sur vm2), **puis redevenue normale** à la
+dernière exécution (148 s mesurées pour 136 s prédites, soit +9 %). vm2 a aussi eu
+un épisode lent (172 s au lieu de 131 s en session 3, r1).
+
+**Conclusion de l'investigation :** ce n'était **pas un hôte défaillant propre à
+l'ancienne vm3**. C'est un comportement des **e2-medium à cœur partagé** : leur
+vitesse varie fortement sous charge prolongée (plusieurs minutes), puis remonte.
+L'explication la plus cohérente est un **bridage par crédits de processeur** : la VM
+dépasse sa part un temps, est ensuite limitée, et récupère quand elle travaille
+moins. La remontée de vm3 juste après l'exécution perturbée (tâches espacées d'une
+seconde, donc processeur moins chargé) va dans ce sens. Les VM à cœur dédié (vm1,
+highcpu) ont été stables dans toutes nos mesures.
+*Non prouvé* : la mesure directe serait le **« steal time »** des VM (`/proc/stat`)
+pendant l'exécution — piste pour aller plus loin.
+
+**Bilan sur 2000 tâches (8 paires d'exécutions valides)** : select-maxmin est plus
+rapide dans **6 paires sur 8**. Dans les 2 autres, vm3 était moins bridée pendant
+l'exécution de RR. Avec ces lots longs, **les deux makespans sont fixés par
+l'e2-medium la plus bridée**, quel que soit l'algorithme : la variabilité de ces VM
+est du même ordre de grandeur que le gain de l'algorithme.
 
 ### Ce qu'on en retient
 
-1. **Le gain de select-maxmin se confirme en réel** : −71 % et −29 % de coût sur
-   les petits lots, −24 % de temps sur le gros, S mesuré entre 0,66 et 0,89.
-2. **Le modèle est fiable quand les VM tournent normalement** (≈ ±10 %), contre un
-   facteur 3 dans l'ancien rapport.
-3. **L'algorithme reste robuste à une VM ralentie** : même avec vm3 dégradée, il
-   bat RR, en partie parce qu'il charge moins vm3 (398 tâches au lieu de 500).
-4. **Limite principale : la variabilité du cloud.** Une VM « identique » peut être
-   1,9 × plus lente, et un planning calculé à l'avance ne s'y adapte pas. Pistes :
-   mesurer rapidement chaque VM juste avant de planifier ; ou laisser une VM qui
-   a fini prendre des tâches restantes d'une VM lente (*work stealing*), au prix
-   d'un écart au planning du scheduler.
+1. **Le gain de select-maxmin se confirme en réel sur les petits lots** : −71 % et
+   −29 % de coût (9 et 500 tâches). **Sur 2000 tâches, le gain est réel mais
+   bruité** : plus rapide dans 6 paires d'exécutions sur 8.
+2. **Le modèle est fiable quand les VM tournent normalement** (≈ ±10 %, par exemple
+   148 s mesurées pour 136 s prédites), contre un facteur 3 dans l'ancien rapport.
+   Les écarts × 1,6 à × 1,9 viennent du bridage des e2-medium, que le modèle,
+   calibré sur des mesures courtes, ne connaît pas.
+3. **L'algorithme est plus prévisible que RR** sur 2000 tâches (sessions 1 et 2 :
+   251 à 257 s contre 241 à 341 s), en partie parce qu'il charge moins vm3
+   (398 tâches au lieu de 500).
+4. **Limite principale : la variabilité des VM à cœur partagé.** Les e2-medium sont
+   les moins chères, mais imprévisibles en charge prolongée ; un planning calculé à
+   l'avance ne s'y adapte pas. Pistes : éviter ces VM pour les longs lots (ou
+   prévoir une marge dans le modèle) ; mesurer la vitesse réelle pendant
+   l'exécution et rééquilibrer (*work stealing*), au prix d'un écart au planning
+   du scheduler ; surveiller le *steal time*.
 
 ---
 
@@ -546,8 +590,8 @@ Même type que vm2 (e2-medium), même charge, même session, mais :
 2. ~~Modèle + algorithmes classiques~~ : faits (§ 7).
 3. ~~Notre algorithme select-maxmin~~ : fait (§ 8).
 4. ~~Expériences réelles RR contre select-maxmin~~ : faites (§ 9).
-5. *(Recommandé)* Relancer 500 tâches avec des VM « reposées » pour 3 mesures
-   sans l'incident vm3 ; tester l'hypothèse sur vm3 (redémarrage + benchmark).
+5. ~~Investigation vm3~~ : faite (§ 9) — variabilité des e2-medium, pas un hôte
+   défaillant. *(Optionnel)* mesurer le *steal time* pour le prouver.
 6. *(Optionnel)* Analyse de sensibilité : `-wcost 0.8` / `0.4` sur 500 et 2000 tâches.
 7. **Soutenance** : rapport écrit, slides (schéma d'architecture, graphiques),
    démo en direct (9 tâches, select-maxmin : seules vm2 et vm3 allumées), vidéo
