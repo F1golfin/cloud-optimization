@@ -254,7 +254,25 @@ func (s *sshRunner) Prepare(vms []string) error {
 		wg.Add(1)
 		go func(i int, vm string) {
 			defer wg.Done()
-			if out, err := exec.Command("ssh", append(s.sshArgs(vm), "true")...).CombinedOutput(); err != nil {
+			// Juste après « manage_vms.sh start », la VM est RUNNING mais son
+			// serveur SSH démarre encore (« Connection refused ») : on réessaie
+			// pendant ~2 minutes. Une erreur de clé, elle, ne se corrige pas
+			// toute seule : on abandonne aussitôt.
+			var out []byte
+			var err error
+			for attempt := 1; attempt <= 24; attempt++ {
+				out, err = exec.Command("ssh", append(s.sshArgs(vm), "true")...).CombinedOutput()
+				msg := string(out)
+				if err == nil || !(strings.Contains(msg, "Connection refused") ||
+					strings.Contains(msg, "timed out") || strings.Contains(msg, "No route to host")) {
+					break
+				}
+				if attempt == 1 {
+					fmt.Printf("  %s : SSH pas encore prêt, attente...\n", vm)
+				}
+				time.Sleep(5 * time.Second)
+			}
+			if err != nil {
 				errs[i] = fmt.Errorf("connexion SSH à %s impossible : %v %s\n"+
 					"  (si c'est la première fois : gcloud compute ssh %s --zone %s --command true)",
 					vm, err, strings.TrimSpace(string(out)), vm, s.zone)
