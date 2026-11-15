@@ -30,9 +30,9 @@ tasks.csv + machines.csv + vm_performance.csv (mesures réelles)
 | Composant | Rôle | Emplacement |
 |---|---|---|
 | Workloads | Programmes Go compilés (CPU, mémoire, matrice, tri) | `workloads/` |
-| Infrastructure | 4 VM Compute Engine, europe-west1-b | `scripts/` (à venir) |
+| Infrastructure | 4 VM Compute Engine, europe-west1-b | `scripts/` |
 | Scheduler | Décide la VM de chaque tâche | `scheduler/` |
-| Orchestrateur | Lance les tâches et collecte les résultats | à venir |
+| Orchestrateur | Lance les tâches et collecte les résultats | `orchestrator/` |
 
 ## Organisation du dépôt
 
@@ -91,6 +91,46 @@ make && ./scripts/benchmark.sh -m local        # -> results/benchmark_local.csv
 Format : `machine,workload,size,run,runtime_s,max_rss_kb`. La colonne `machine`
 permet de fusionner les fichiers de toutes les VM en un seul tableau pour le
 scheduler. Le benchmark local a été fait sous Linux (VM OrbStack, Ubuntu arm64).
+
+## Infrastructure GCP
+
+```bash
+./scripts/manage_vms.sh create   # crée / corrige les 4 VM (scripts/config.sh)
+./scripts/manage_vms.sh start
+./scripts/deploy.sh              # make linux + copie des binaires sur chaque VM
+./scripts/bench_vms.sh           # benchmark sur chaque VM -> data/vm_performance.csv
+./scripts/manage_vms.sh stop     # TOUJOURS à la fin
+```
+
+`data/machines.csv` décrit les VM (type, vCPU, RAM, prix horaire) ; il est lu
+par le scheduler et par l'orchestrateur.
+
+## Orchestrateur
+
+```bash
+make                                   # construit bin/orchestrator
+./bin/orchestrator -alloc data/allocation_rr.csv -out results/run_rr.csv
+./bin/orchestrator -alloc data/allocation_rr.csv -workers 1   # 1 tâche à la fois par VM
+./bin/orchestrator -alloc data/allocation_rr.csv -local       # test sans GCP
+```
+
+- Une **file par VM**, dans l'ordre de `allocation.csv` ; toutes les VM
+  travaillent en parallèle, et sur chaque VM **N workers** vident la file
+  (par défaut N = nombre de vCPU, option `-workers`).
+- **Une connexion SSH par VM**, réutilisée par toutes ses tâches (multiplexage
+  OpenSSH `ControlMaster`), avec la clé et la vérification d'hôte de gcloud.
+- **Horodatage sur la machine de contrôle** (une seule horloge) : `start_s`,
+  `end_s` relatifs au lancement du lot. `overhead_s = duration_s - remote_runtime_s`
+  isole le surcoût SSH/réseau du temps de calcul mesuré par le workload.
+
+Sorties :
+
+| Fichier | Contenu |
+|---|---|
+| `results/<run>.csv` | `task_id,workload,size,vm,worker,start_s,end_s,duration_s,remote_runtime_s,overhead_s,exit_code,error` |
+| `results/<run>_vms.csv` | par VM : tâches, fenêtre active, temps occupé, surcoût moyen, durée facturée (min. 60 s), coût |
+
+Le code retour est non nul si une tâche échoue ; les autres tâches continuent.
 
 ## Modèle d'optimisation (résumé)
 
