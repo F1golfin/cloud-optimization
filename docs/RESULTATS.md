@@ -19,8 +19,8 @@ Mis à jour à chaque étape. Dernière mise à jour : 15/11/2026.
 | 4. Orchestrateur Go | ✅ testé sur GCP | `orchestrator/main.go`, `results/run_rr*.csv` |
 | 4b. Expérience « workers » | ✅ | `scripts/exp_workers.sh`, `results/exp_workers/` |
 | 5a. Modèle + RR, MET, MCT, Min-Min, Max-Min | ✅ simulé | `scheduler/`, `data/tasks_*.csv`, `results/simulation/` |
-| 5b. Nouvel algorithme optimisé | ⬜ à concevoir | (§ 7) |
-| 6. Expériences réelles RR vs nouvel algorithme | ⬜ | |
+| 5b. Notre algorithme select-maxmin | ✅ simulé | `scheduler/algorithms/select.go` (§ 8) |
+| 6. Expériences réelles RR vs select-maxmin | ⬜ | |
 | 7. Soutenance | ⬜ | |
 
 ---
@@ -319,14 +319,106 @@ mais du **choix des VM à allumer** et de **sur quelle VM faire tourner le trava
 - au-delà, chaque seconde coûte au prix de la VM : privilégier vm2/vm3 (le
   travail le moins cher), highcpu pour le délai, éviter vm1 (dominée, § 6).
 
-Piste simple : avec 4 VM, il n'y a que 15 ensembles de VM possibles ; pour chacun,
-répartir avec Max-Min, puis garder le meilleur S admissible.
-**Estimations faites à la main (à confirmer par l'algorithme)** : sans vm1,
-S ≈ 0,82 sur 500 tâches et ≈ 0,90 sur 2000 tâches, contre 0,914 et 0,915 pour Max-Min.
+→ C'est l'algorithme `select-maxmin` (§ 8).
 
 ---
 
-## 8. Décisions prises
+## 8. Notre algorithme : `select-maxmin` (SIMULATION)
+
+> ⚠️ Résultats **prédits par le modèle**. La vérification sur GCP est l'étape 6.
+
+### Principe (`scheduler/algorithms/select.go`)
+
+Deux VM du même type sont interchangeables (vm2 et vm3 sont deux e2-medium) :
+on ne se demande pas « quelles VM allumer » mais **« combien de VM de chaque
+type allumer »**.
+
+1. **Choix du nombre de VM par type — exact.** On essaie toutes les
+   combinaisons : e2-standard-2 (0–1) × e2-medium (0–2) × e2-highcpu-4 (0–1),
+   sauf « aucune VM » = **11 combinaisons**.
+2. **Répartition — heuristique.** Sur chaque combinaison, **Max-Min**, le
+   meilleur algorithme classique (§ 7).
+3. On garde le **meilleur S** parmi les combinaisons qui respectent
+   `D ≤ 1,25·D_RR` et la RAM. Si aucune ne la respecte : Round Robin.
+
+Propriétés :
+
+- **Aucun nom de VM, type, prix ou durée dans le code** : tout vient de
+  `machines.csv` et `vm_performance.csv`. Les mêmes lignes de code éteignent
+  2, 1 ou 0 VM selon le lot.
+- **Jamais pire que Max-Min** (dès qu'il est admissible) : la combinaison
+  « toutes les VM » fait partie des essais. Testé (`TestSelectNeverWorseThanMaxMin`).
+- **Passage à l'échelle** : `Π (n_t + 1) − 1` combinaisons, qui dépend du
+  nombre de **types** et non du nombre de VM. 3 types × 10 VM = 1 330
+  combinaisons (contre ~10⁹ en traitant chaque VM séparément). Temps de calcul
+  mesuré : 114 ms pour 2000 tâches.
+- **Justification affichable** : `./bin/scheduler -explain -tasks <lot>` affiche
+  les 11 combinaisons triées par S.
+- **Intégration** : `-algo select-maxmin` affiche aussi les VM à démarrer
+  (`VMS="..." ./scripts/manage_vms.sh start`) : les VM non choisies restent éteintes.
+
+### Résultats
+
+| Lot | Max-Min (meilleur classique) | **select-maxmin** | Gain sur S | VM allumées |
+|---|---|---|---|---|
+| 9 tâches | 0,998 | **0,589** | −41 % | 2 (2 × e2-medium) |
+| 500 tâches | 0,914 | **0,819** | −10 % | 3 (sans vm1) |
+| 2000 tâches | 0,915 | **0,915** | 0 % | 4 (= Max-Min) |
+
+**9 tâches** (avec l'allocation manuelle du TD3) :
+
+| Algo | Coût ($) | Makespan (s) | S | VM |
+|---|---|---|---|---|
+| RR | 0,004272 | 1,216 | 1,000 | 4 |
+| Max-Min | 0,004272 | 1,211 | 0,998 | 4 |
+| Manuelle (TD3) | 0,002458 | 1,216 | 0,745 | 3 |
+| **select-maxmin** | **0,001230** | 1,266 | **0,589** | 2 |
+
+Coût −71 % par rapport à RR, −50 % par rapport à l'allocation manuelle, pour un
+lot 4 % plus long.
+
+**500 tâches** — `-explain` (limite de délai 50,6 s), extrait :
+
+| VM allumées | Coût ($) | Makespan (s) | S | Admissible |
+|---|---|---|---|---|
+| **0 × std-2 + 2 × medium + 1 × highcpu** (choisi) | 0,003043 | 39,7 | **0,819** | oui |
+| 1 × std-2 + 1 × medium + 1 × highcpu | 0,003657 | 39,7 | 0,906 | oui |
+| 1 × std-2 + 2 × medium + 1 × highcpu (= Max-Min) | 0,004272 | 31,8 | 0,914 | oui |
+| 0 × std-2 + 1 × medium + 1 × highcpu | 0,002428 | 52,8 | 0,862 | **non** |
+| 1 × std-2 + 2 × medium + 0 × highcpu | 0,002458 | 53,8 | 0,877 | **non** |
+
+Même temps que RR (39,7 s contre 40,5 s), coût −29 %. Deux combinaisons non
+admissibles ont un meilleur S brut que la combinaison choisie : **sans la
+contrainte de délai, l'algorithme choisirait un lot trop lent**. La contrainte
+à 125 % joue donc réellement son rôle.
+
+**2000 tâches** — `-explain` (limite 220,5 s), extrait :
+
+| VM allumées | Coût ($) | Makespan (s) | S | Admissible |
+|---|---|---|---|---|
+| **1 × std-2 + 2 × medium + 1 × highcpu** (choisi) | 0,009687 | 136,1 | **0,9146** | oui |
+| 0 × std-2 + 2 × medium + 1 × highcpu | 0,008610 | 169,7 | 0,9235 | oui |
+| 1 × std-2 + 1 × medium + 1 × highcpu | 0,010349 | 169,8 | 1,0325 | oui |
+
+### Constats
+
+1. **Plus le lot est petit, plus le choix des VM rapporte** : sous 60 s, chaque
+   VM inutile coûte sa minute complète.
+2. **Sur un gros lot, éteindre vm1 ne vaut pas le coup**, alors que c'était notre
+   intuition (estimation à la main : S ≈ 0,90). Au-delà de 60 s, le travail de vm1
+   doit être fait ailleurs : on économise seulement 11 % de coût mais le lot dure
+   25 % de plus ; avec 40 % de poids sur le temps, S se dégrade (0,9235 contre
+   0,9146). vm1 est la moins rentable par dollar, mais elle ajoute de la capacité.
+3. **L'écart est faible à 2000 tâches (0,009)** : le choix dépend des poids.
+   Une entreprise plus attentive au coût (`-wcost 0,8`) devrait éteindre vm1 — à
+   vérifier (analyse de sensibilité).
+4. Mes estimations à la main étaient justes pour 9 et 500 tâches, fausses pour
+   2000 : c'est précisément l'intérêt de calculer toutes les combinaisons plutôt
+   que d'appliquer une règle intuitive.
+
+---
+
+## 9. Décisions prises
 
 | Décision | Raison |
 |---|---|
@@ -343,19 +435,22 @@ S ≈ 0,82 sur 500 tâches et ≈ 0,90 sur 2000 tâches, contre 0,914 et 0,915 p
 | Lots générés avec une graine fixe | Reproductibles par toute l'équipe |
 | Faire varier le nombre de tâches, pas la durée des tâches | Couvre les régimes < 60 s et > 60 s sans refaire le benchmark |
 | Ancienne V8 abandonnée, nouvel algorithme à concevoir | Les nouvelles mesures changent le problème (§ 7) |
+| select-maxmin : combinaisons de **types** de VM, Max-Min sur chacune | Choix des VM exact et explicable ; passe à l'échelle avec le nombre de types (§ 8) |
 
 ---
 
-## 9. Prochaines étapes
+## 10. Prochaines étapes
 
 1. ~~Expérience « workers »~~ : faite (§ 6).
 2. ~~Modèle + algorithmes classiques~~ : faits (§ 7).
-3. **Nouvel algorithme (étape 5b)** : choisir les VM à allumer puis répartir,
-   en minimisant directement `S` sous `D ≤ 1,25·D_RR` (§ 7).
-4. **Expériences (étape 6)** : RR et le nouvel algorithme exécutés sur GCP
-   (500 et 2000 tâches), 3 répétitions, coût et makespan mesurés, erreur prédit/réel.
+3. ~~Notre algorithme select-maxmin~~ : fait (§ 8).
+4. **Analyse de sensibilité** (optionnel) : `-wcost 0.8` et `-wcost 0.4` sur 500
+   et 2000 tâches, pour montrer que le choix des VM suit les priorités.
+5. **Expériences (étape 6)** : RR et select-maxmin exécutés sur GCP (9 et 500
+   tâches, éventuellement 2000), 3 répétitions, coût et makespan mesurés,
+   erreur prédit/réel. N'allumer que les VM choisies par l'algorithme.
 
-## 10. Règles
+## 11. Règles
 
 - Ne jamais présenter une durée simulée comme mesurée.
 - Toujours `./scripts/manage_vms.sh stop` après une session GCP.

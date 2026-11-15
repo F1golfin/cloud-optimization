@@ -140,13 +140,18 @@ Le code retour est non nul si une tâche échoue ; les autres tâches continuent
 
 ```bash
 ./bin/gentasks -n 500 -seed 42                       # -> data/tasks_500.csv (reproductible)
-./bin/scheduler -algo mct -tasks data/tasks_500.csv -out data/allocation_mct_500.csv
+./bin/scheduler -algo select-maxmin -tasks data/tasks_500.csv -out data/allocation_sel_500.csv
+./bin/scheduler -explain -tasks data/tasks_500.csv   # justification : les 11 combinaisons de types de VM
 ./bin/scheduler -compare -tasks data/tasks_500.csv   # tous les algorithmes, même modèle
 ./bin/scheduler -compare -tasks data/tasks_500.csv -exclude cloudopt-highcpu
 ./bin/scheduler -compare -tasks data/tasks.csv -eval data/allocation_manual.csv
 ```
 
-Algorithmes : `rr` (référence), `met`, `mct`, `minmin`, `maxmin`.
+Algorithmes : `rr` (référence), `met`, `mct`, `minmin`, `maxmin` et
+**`select-maxmin`** (notre algorithme) : il essaie chaque combinaison « nombre de
+VM de chaque type » (11 pour notre parc), répartit avec Max-Min et garde le
+meilleur score S qui respecte le délai. En mode `-algo`, il affiche aussi les VM
+à démarrer : les autres restent éteintes.
 Options du mode compare : `-csv <fichier>` (tableau), `-save-dir <dossier>`
 (allocation de chaque algorithme, directement exécutable par l'orchestrateur).
 
@@ -179,6 +184,6 @@ Aucune clé ni aucun fichier d'identifiants ne doit être commité.
 - [x] Étape 3 : VM GCP + benchmark sur chaque VM (`data/vm_performance.csv`)
 - [x] Étape 4 : orchestrateur Go (testé sur GCP, `results/run_rr.csv`)
 - [x] Étape 5a : modèle + RR, MET, MCT, Min-Min, Max-Min + mode compare
-- [ ] Étape 5b : nouvel algorithme optimisé (à concevoir)
+- [x] Étape 5b : notre algorithme `select-maxmin` (simulé)
 - [ ] Étape 6 : expériences réelles RR vs V8
 - [ ] Étape 7 : soutenance
