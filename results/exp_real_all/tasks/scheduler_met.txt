@@ -1,0 +1,9 @@
+Lot data/tasks.csv : 9 tâches | VM : cloudopt-vm1, cloudopt-vm2, cloudopt-vm3, cloudopt-highcpu
+Modèle : durée = médiane benchmark x contention + 0.10 s | S = 0.6·C/C_RR + 0.4·D/D_RR | D <= 1.25 x D_RR = 1.519 s
+
+Algo                   Coût ($)  Makespan (s)        S Admissible    Calcul  Tâches par VM
+met                    0.002428         1.326   0.7775        oui         -  vm3:3 highcpu:6
+
+Allocation écrite : results/exp_real_all/tasks/alloc_met.csv
+VM à démarrer     : VMS="cloudopt-vm3 cloudopt-highcpu" ./scripts/manage_vms.sh start
+Puis              : ./bin/orchestrator -alloc results/exp_real_all/tasks/alloc_met.csv

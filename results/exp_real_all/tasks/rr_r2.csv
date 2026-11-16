@@ -1,0 +1,10 @@
+task_id,workload,size,vm,worker,start_s,end_s,duration_s,remote_runtime_s,overhead_s,exit_code,error
+T4,matrix_task,400,cloudopt-highcpu,2,0.000090,0.139501,0.139410,0.093033,0.046377,0,
+T8,memory_task,256,cloudopt-highcpu,1,0.000111,0.455661,0.455550,0.389761,0.065789,0,
+T3,memory_task,256,cloudopt-vm3,2,0.000394,0.582403,0.582009,0.520243,0.061766,0,
+T1,cpu_task,500000,cloudopt-vm1,2,0.000425,0.248123,0.247698,0.203430,0.044268,0,
+T2,cpu_task,1000000,cloudopt-vm2,2,0.000584,0.577852,0.577268,0.534636,0.042632,0,
+T7,cpu_task,500000,cloudopt-vm3,1,0.000753,0.235794,0.235042,0.190251,0.044791,0,
+T6,matrix_task,600,cloudopt-vm2,1,0.000872,0.597705,0.596832,0.546637,0.050196,0,
+T5,memory_task,512,cloudopt-vm1,1,0.001175,1.067940,1.066765,0.989137,0.077629,0,
+T9,matrix_task,400,cloudopt-vm1,2,0.248162,0.502195,0.254033,0.206640,0.047393,0,

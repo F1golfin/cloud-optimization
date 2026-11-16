@@ -1,0 +1,217 @@
+################ Lot data/tasks_2000.csv ################
+  rr : VM à démarrer     : VMS="cloudopt-vm1 cloudopt-vm2 cloudopt-vm3 cloudopt-highcpu" ./scripts/manage_vms.sh start
+  met : VM à démarrer     : VMS="cloudopt-vm1 cloudopt-vm3 cloudopt-highcpu" ./scripts/manage_vms.sh start
+  mct : VM à démarrer     : VMS="cloudopt-vm1 cloudopt-vm2 cloudopt-vm3 cloudopt-highcpu" ./scripts/manage_vms.sh start
+  minmin : VM à démarrer     : VMS="cloudopt-vm1 cloudopt-vm2 cloudopt-vm3 cloudopt-highcpu" ./scripts/manage_vms.sh start
+  maxmin : VM à démarrer     : VMS="cloudopt-vm1 cloudopt-vm2 cloudopt-vm3 cloudopt-highcpu" ./scripts/manage_vms.sh start
+  select-maxmin : VM à démarrer     : VMS="cloudopt-vm1 cloudopt-vm2 cloudopt-vm3 cloudopt-highcpu" ./scripts/manage_vms.sh start
+
+===== tasks_2000 | rr | répétition 1/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     500     55.39    221.11    176.50     0.089s   0.001813  AMD EPYC 7B12
+cloudopt-vm1         500    112.82    224.50    181.63     0.086s   0.002310  AMD EPYC 7B12
+cloudopt-vm2         500    111.12    221.17    179.18     0.084s   0.001139  AMD EPYC 7B12
+cloudopt-vm3         500    109.87    219.68    177.06     0.085s   0.001126  AMD EPYC 7B12
+
+Makespan mesuré : 112.821 s | coût (modèle, min. 60 s/VM) : 0.006388 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/rr_r1.csv  |  par VM : results/exp_real_all/tasks_2000/rr_r1_vms.csv
+
+===== tasks_2000 | met | répétition 1/3 =====
+  [ 214.30s] T1993  memory_task  512       cloudopt-vm3      w2   1.48s  ok
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu    1484    141.63    564.71    438.82     0.085s   0.004280  AMD EPYC 7B12
+cloudopt-vm1         183     30.25     60.24     47.88     0.068s   0.001228  AMD EPYC 7B12
+cloudopt-vm3         333    214.30    428.05    374.93     0.160s   0.002197  AMD EPYC 7B12
+
+Makespan mesuré : 214.299 s | coût (modèle, min. 60 s/VM) : 0.007705 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/met_r1.csv  |  par VM : results/exp_real_all/tasks_2000/met_r1_vms.csv
+
+===== tasks_2000 | mct | répétition 1/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     680     90.87    363.12    293.72     0.102s   0.002746  AMD EPYC 7B12
+cloudopt-vm1         419     94.54    188.63    152.02     0.087s   0.001935  AMD EPYC 7B12
+cloudopt-vm2         478     79.48    158.86    121.54     0.078s   0.000815  AMD EPYC 7B12
+cloudopt-vm3         423    164.07    326.88    264.22     0.148s   0.001682  AMD EPYC 7B12
+
+Makespan mesuré : 164.071 s | coût (modèle, min. 60 s/VM) : 0.007178 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/mct_r1.csv  |  par VM : results/exp_real_all/tasks_2000/mct_r1_vms.csv
+
+===== tasks_2000 | minmin | répétition 1/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     94.24    374.65    297.49     0.094s   0.002848  AMD EPYC 7B12
+cloudopt-vm1         398     93.89    187.71    151.93     0.090s   0.001922  AMD EPYC 7B12
+cloudopt-vm2         387     91.02    180.77    143.95     0.095s   0.000933  AMD EPYC 7B12
+cloudopt-vm3         398    159.28    318.07    268.07     0.126s   0.001633  AMD EPYC 7B12
+
+Makespan mesuré : 159.284 s | coût (modèle, min. 60 s/VM) : 0.007336 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/minmin_r1.csv  |  par VM : results/exp_real_all/tasks_2000/minmin_r1_vms.csv
+
+===== tasks_2000 | maxmin | répétition 1/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     93.55    373.99    302.51     0.087s   0.002827  AMD EPYC 7B12
+cloudopt-vm1         397     91.87    183.65    149.35     0.086s   0.001881  AMD EPYC 7B12
+cloudopt-vm2         388     89.43    178.78    143.38     0.091s   0.000917  AMD EPYC 7B12
+cloudopt-vm3         398    162.71    325.35    275.67     0.125s   0.001668  AMD EPYC 7B12
+
+Makespan mesuré : 162.714 s | coût (modèle, min. 60 s/VM) : 0.007292 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/maxmin_r1.csv  |  par VM : results/exp_real_all/tasks_2000/maxmin_r1_vms.csv
+
+===== tasks_2000 | select-maxmin | répétition 1/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     93.29    372.95    295.56     0.095s   0.002819  AMD EPYC 7B12
+cloudopt-vm1         397     90.73    181.42    147.49     0.085s   0.001857  AMD EPYC 7B12
+cloudopt-vm2         388     86.89    173.72    140.95     0.084s   0.000891  AMD EPYC 7B12
+cloudopt-vm3         398    160.98    321.91    270.27     0.130s   0.001650  AMD EPYC 7B12
+
+Makespan mesuré : 160.982 s | coût (modèle, min. 60 s/VM) : 0.007218 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/select-maxmin_r1.csv  |  par VM : results/exp_real_all/tasks_2000/select-maxmin_r1_vms.csv
+
+===== tasks_2000 | rr | répétition 2/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     500     55.35    220.87    176.21     0.089s   0.001813  AMD EPYC 7B12
+cloudopt-vm1         500    114.96    228.83    183.73     0.090s   0.002353  AMD EPYC 7B12
+cloudopt-vm2         500    108.88    216.68    173.16     0.087s   0.001116  AMD EPYC 7B12
+cloudopt-vm3         500    212.84    425.40    344.94     0.161s   0.002182  AMD EPYC 7B12
+
+Makespan mesuré : 212.838 s | coût (modèle, min. 60 s/VM) : 0.007464 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/rr_r2.csv  |  par VM : results/exp_real_all/tasks_2000/rr_r2_vms.csv
+
+===== tasks_2000 | met | répétition 2/3 =====
+  [ 234.27s] T1993  memory_task  512       cloudopt-vm3      w1   1.47s  ok
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu    1484    142.97    570.13    440.88     0.087s   0.004321  AMD EPYC 7B12
+cloudopt-vm1         183     31.19     62.16     49.64     0.068s   0.001228  AMD EPYC 7B12
+cloudopt-vm3         333    234.27    468.01    407.85     0.181s   0.002401  AMD EPYC 7B12
+
+Makespan mesuré : 234.269 s | coût (modèle, min. 60 s/VM) : 0.007950 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/met_r2.csv  |  par VM : results/exp_real_all/tasks_2000/met_r2_vms.csv
+
+===== tasks_2000 | mct | répétition 2/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     680     91.37    364.73    295.36     0.102s   0.002761  AMD EPYC 7B12
+cloudopt-vm1         419     89.77    179.09    144.82     0.082s   0.001838  AMD EPYC 7B12
+cloudopt-vm2         478     82.54    164.91    128.83     0.075s   0.000846  AMD EPYC 7B12
+cloudopt-vm3         423    166.53    331.86    270.98     0.144s   0.001707  AMD EPYC 7B12
+
+Makespan mesuré : 166.534 s | coût (modèle, min. 60 s/VM) : 0.007152 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/mct_r2.csv  |  par VM : results/exp_real_all/tasks_2000/mct_r2_vms.csv
+
+===== tasks_2000 | minmin | répétition 2/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     96.32    383.35    310.37     0.089s   0.002911  AMD EPYC 7B12
+cloudopt-vm1         398     93.63    187.12    151.91     0.088s   0.001917  AMD EPYC 7B12
+cloudopt-vm2         387     92.91    184.52    150.88     0.087s   0.000952  AMD EPYC 7B12
+cloudopt-vm3         398    164.11    328.14    276.67     0.129s   0.001682  AMD EPYC 7B12
+
+Makespan mesuré : 164.112 s | coût (modèle, min. 60 s/VM) : 0.007462 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/minmin_r2.csv  |  par VM : results/exp_real_all/tasks_2000/minmin_r2_vms.csv
+
+===== tasks_2000 | maxmin | répétition 2/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     94.21    376.55    304.45     0.088s   0.002847  AMD EPYC 7B12
+cloudopt-vm1         397     93.48    186.91    152.38     0.087s   0.001914  AMD EPYC 7B12
+cloudopt-vm2         388     91.18    182.31    147.72     0.089s   0.000935  AMD EPYC 7B12
+cloudopt-vm3         398    166.71    333.32    281.05     0.131s   0.001709  AMD EPYC 7B12
+
+Makespan mesuré : 166.709 s | coût (modèle, min. 60 s/VM) : 0.007404 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/maxmin_r2.csv  |  par VM : results/exp_real_all/tasks_2000/maxmin_r2_vms.csv
+
+===== tasks_2000 | select-maxmin | répétition 2/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     92.80    370.97    299.65     0.087s   0.002805  AMD EPYC 7B12
+cloudopt-vm1         397     92.58    185.08    150.08     0.088s   0.001895  AMD EPYC 7B12
+cloudopt-vm2         388     92.05    184.00    149.12     0.090s   0.000944  AMD EPYC 7B12
+cloudopt-vm3         398    165.66    331.26    279.40     0.130s   0.001698  AMD EPYC 7B12
+
+Makespan mesuré : 165.659 s | coût (modèle, min. 60 s/VM) : 0.007342 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/select-maxmin_r2.csv  |  par VM : results/exp_real_all/tasks_2000/select-maxmin_r2_vms.csv
+
+===== tasks_2000 | rr | répétition 3/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     500     55.03    219.33    177.06     0.085s   0.001813  AMD EPYC 7B12
+cloudopt-vm1         500    111.68    222.33    179.29     0.086s   0.002286  AMD EPYC 7B12
+cloudopt-vm2         500    110.03    218.94    174.76     0.088s   0.001128  AMD EPYC 7B12
+cloudopt-vm3         500    221.50    442.71    357.14     0.171s   0.002270  AMD EPYC 7B12
+
+Makespan mesuré : 221.504 s | coût (modèle, min. 60 s/VM) : 0.007498 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/rr_r3.csv  |  par VM : results/exp_real_all/tasks_2000/rr_r3_vms.csv
+
+===== tasks_2000 | met | répétition 3/3 =====
+  [ 242.41s] T1993  memory_task  512       cloudopt-vm3      w1   1.42s  ok
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu    1484    155.10    618.63    481.58     0.092s   0.004688  AMD EPYC 7B12
+cloudopt-vm1         183     29.59     58.94     47.60     0.062s   0.001228  AMD EPYC 7B12
+cloudopt-vm3         333    242.40    484.25    424.40     0.180s   0.002485  AMD EPYC 7B12
+
+Makespan mesuré : 242.405 s | coût (modèle, min. 60 s/VM) : 0.008400 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/met_r3.csv  |  par VM : results/exp_real_all/tasks_2000/met_r3_vms.csv
+
+===== tasks_2000 | mct | répétition 3/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     680     93.04    371.57    299.43     0.106s   0.002812  AMD EPYC 7B12
+cloudopt-vm1         419     93.69    186.91    150.32     0.087s   0.001918  AMD EPYC 7B12
+cloudopt-vm2         478     83.34    166.60    127.88     0.081s   0.000854  AMD EPYC 7B12
+cloudopt-vm3         423    165.52    329.93    266.92     0.149s   0.001697  AMD EPYC 7B12
+
+Makespan mesuré : 165.517 s | coût (modèle, min. 60 s/VM) : 0.007281 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/mct_r3.csv  |  par VM : results/exp_real_all/tasks_2000/mct_r3_vms.csv
+
+===== tasks_2000 | minmin | répétition 3/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     92.48    367.64    297.79     0.085s   0.002795  AMD EPYC 7B12
+cloudopt-vm1         398     94.63    188.74    153.48     0.089s   0.001937  AMD EPYC 7B12
+cloudopt-vm2         387     90.28    180.17    143.94     0.094s   0.000925  AMD EPYC 7B12
+cloudopt-vm3         398    158.41    316.75    269.35     0.119s   0.001624  AMD EPYC 7B12
+
+Makespan mesuré : 158.411 s | coût (modèle, min. 60 s/VM) : 0.007281 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/minmin_r3.csv  |  par VM : results/exp_real_all/tasks_2000/minmin_r3_vms.csv
+
+===== tasks_2000 | maxmin | répétition 3/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     91.97    367.76    298.90     0.084s   0.002780  AMD EPYC 7B12
+cloudopt-vm1         397     92.84    185.64    151.20     0.087s   0.001901  AMD EPYC 7B12
+cloudopt-vm2         388     87.79    175.50    143.42     0.083s   0.000900  AMD EPYC 7B12
+cloudopt-vm3         398    163.51    326.93    279.76     0.119s   0.001676  AMD EPYC 7B12
+
+Makespan mesuré : 163.515 s | coût (modèle, min. 60 s/VM) : 0.007256 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/maxmin_r3.csv  |  par VM : results/exp_real_all/tasks_2000/maxmin_r3_vms.csv
+
+===== tasks_2000 | select-maxmin | répétition 3/3 =====
+
+VM                tâches  actif(s) occupé(s) calcul(s)  surcoût/t    coût($)  processeur
+cloudopt-highcpu     817     91.69    366.70    299.12     0.083s   0.002771  AMD EPYC 7B12
+cloudopt-vm1         397     92.82    185.60    152.10     0.084s   0.001900  AMD EPYC 7B12
+cloudopt-vm2         388     88.23    176.43    142.23     0.088s   0.000904  AMD EPYC 7B12
+cloudopt-vm3         398    161.29    322.53    270.27     0.131s   0.001653  AMD EPYC 7B12
+
+Makespan mesuré : 161.293 s | coût (modèle, min. 60 s/VM) : 0.007229 $ | tâches : 2000 ok, 0 en échec
+Résultats : results/exp_real_all/tasks_2000/select-maxmin_r3.csv  |  par VM : results/exp_real_all/tasks_2000/select-maxmin_r3_vms.csv
+
+Synthèse tasks_2000 (results/exp_real_all/tasks_2000/summary.csv) :
+algo           runs   makespan mesuré    coût mesuré ($) S mesuré | D prédit  C prédit S prédit | réel/préd
+rr                3    182.388 ± 60.402    0.007117 ± 0.000631    1.0000 |   176.400   0.009591   1.0000 |     1.034
+met               3    230.324 ± 14.462    0.008019 ± 0.000353    1.1812 |   236.203   0.009976   1.1597 |     0.975
+mct               3    165.374 ± 1.238    0.007204 ± 0.000068    0.9700 |   137.102   0.009701   0.9178 |     1.206
+minmin            3    160.603 ± 3.070    0.007360 ± 0.000093    0.9727 |   136.858   0.009734   0.9193 |     1.173
+maxmin            3    164.313 ± 2.114    0.007318 ± 0.000077    0.9773 |   136.086   0.009687   0.9146 |     1.207
+select-maxmin     3    162.645 ± 2.615    0.007263 ± 0.000069    0.9690 |   136.086   0.009687   0.9146 |     1.195
+
+
+Pensez à arrêter les VM : ./scripts/manage_vms.sh stop

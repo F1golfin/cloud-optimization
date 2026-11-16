@@ -2,7 +2,7 @@
 
 Document de passation pour l'équipe : où en est le projet, ce qui a été
 **mesuré**, ce que l'on en conclut, et comment reprendre le travail.
-Mis à jour à chaque étape. Dernière mise à jour : 15/11/2026.
+Mis à jour à chaque étape. Dernière mise à jour : 16/11/2026.
 
 > Règle : tout chiffre de ce document est une **mesure réelle**, sauf mention
 > explicite « hypothèse » ou « prédiction ».
@@ -21,6 +21,7 @@ Mis à jour à chaque étape. Dernière mise à jour : 15/11/2026.
 | 5a. Modèle + RR, MET, MCT, Min-Min, Max-Min | ✅ simulé | `scheduler/`, `data/tasks_*.csv`, `results/simulation/` |
 | 5b. Notre algorithme select-maxmin | ✅ simulé | `scheduler/algorithms/select.go` (§ 8) |
 | 6. Expériences réelles RR vs select-maxmin | ✅ mesuré | `scripts/exp_real.sh`, `results/exp_real/` (§ 9) |
+| 6b. Expériences réelles, tous les algorithmes | ✅ mesuré | `results/exp_real_all/` (§ 9 bis) |
 | 7. Soutenance | ⬜ | |
 
 ---
@@ -410,8 +411,9 @@ contrainte de délai, l'algorithme choisirait un lot trop lent**. La contrainte
    25 % de plus ; avec 40 % de poids sur le temps, S se dégrade (0,9235 contre
    0,9146). vm1 est la moins rentable par dollar, mais elle ajoute de la capacité.
 3. **L'écart est faible à 2000 tâches (0,009)** : le choix dépend des poids.
-   Une entreprise plus attentive au coût (`-wcost 0,8`) devrait éteindre vm1 — à
-   vérifier (analyse de sensibilité).
+   Vérifié (analyse de sensibilité, simulation) : avec `-wcost 0.8`, select-maxmin
+   éteint vm1 sur 2000 tâches (3 VM, 0,008610 $, 169,7 s) au lieu de garder les 4
+   (0,009687 $, 136,1 s). Même code, décision différente selon les priorités.
 4. Mes estimations à la main étaient justes pour 9 et 500 tâches, fausses pour
    2000 : c'est précisément l'intérêt de calculer toutes les combinaisons plutôt
    que d'appliquer une règle intuitive.
@@ -526,13 +528,20 @@ un épisode lent (172 s au lieu de 131 s en session 3, r1).
 **Conclusion de l'investigation :** ce n'était **pas un hôte défaillant propre à
 l'ancienne vm3**. C'est un comportement des **e2-medium à cœur partagé** : leur
 vitesse varie fortement sous charge prolongée (plusieurs minutes), puis remonte.
-L'explication la plus cohérente est un **bridage par crédits de processeur** : la VM
-dépasse sa part un temps, est ensuite limitée, et récupère quand elle travaille
-moins. La remontée de vm3 juste après l'exécution perturbée (tâches espacées d'une
-seconde, donc processeur moins chargé) va dans ce sens. Les VM à cœur dédié (vm1,
-highcpu) ont été stables dans toutes nos mesures.
-*Non prouvé* : la mesure directe serait le **« steal time »** des VM (`/proc/stat`)
-pendant l'exécution — piste pour aller plus loin.
+**La documentation GCP confirme le mécanisme** (*Machines à usage général →
+CPU bursting*) : chacun des 2 vCPU d'une e2-medium n'a droit qu'à **50 % du temps
+processeur**, soit un vCPU au total ; au-delà, la VM fonctionne par **rafales**
+(≈ 120 s à pleine charge). Privée de rafale, elle tourne donc ≈ 2 × moins vite,
+ce que nous mesurons (× 1,7 à 1,9).
+
+**Mais le mécanisme n'explique pas tout** : lors de la session « tous les
+algorithmes » sur 2000 tâches (§ 9 bis), vm3 a été bridée dans **17 exécutions sur
+18** alors que **vm2, même type et même charge, ne l'a jamais été**. Le bridage
+dépend donc aussi de facteurs que nous ne contrôlons pas (probablement
+l'occupation de la machine physique). highcpu a été stable dans toutes nos
+mesures ; **vm1** (e2-standard-2, pas à cœur partagé) a en revanche ralenti lors
+d'une session (47 à 66 s au lieu de ≈ 31 s sur 500 tâches, § 9 bis) : aléa
+ponctuel, non expliqué par les rafales.
 
 **Bilan sur 2000 tâches (8 paires d'exécutions valides)** : select-maxmin est plus
 rapide dans **6 paires sur 8**. Dans les 2 autres, vm3 était moins bridée pendant
@@ -554,10 +563,92 @@ est du même ordre de grandeur que le gain de l'algorithme.
    (398 tâches au lieu de 500).
 4. **Limite principale : la variabilité des VM à cœur partagé.** Les e2-medium sont
    les moins chères, mais imprévisibles en charge prolongée ; un planning calculé à
-   l'avance ne s'y adapte pas. Pistes : éviter ces VM pour les longs lots (ou
-   prévoir une marge dans le modèle) ; mesurer la vitesse réelle pendant
-   l'exécution et rééquilibrer (*work stealing*), au prix d'un écart au planning
-   du scheduler ; surveiller le *steal time*.
+   l'avance ne s'y adapte pas. Pistes : donner deux vitesses aux e2-medium dans le
+   modèle (pleine vitesse pendant la rafale, ≈ moitié ensuite) ; mesurer la vitesse
+   réelle pendant l'exécution et rééquilibrer (*work stealing*), au prix d'un écart
+   au planning du scheduler.
+
+---
+
+## 9 bis. Expériences réelles : tous les algorithmes (MESURES)
+
+Commandes (16/11/2026, même protocole qu'au § 9 : 3 exécutions alternées par
+algorithme, S mesuré par rapport à RR mesuré du même lot) :
+
+```bash
+OUT=results/exp_real_all ALGOS="rr met mct minmin maxmin select-maxmin manual" \
+    LOTS="data/tasks.csv" ./scripts/exp_real.sh
+OUT=results/exp_real_all ALGOS="rr met mct minmin maxmin select-maxmin" \
+    LOTS="data/tasks_500.csv" ./scripts/exp_real.sh
+OUT=results/exp_real_all ALGOS="rr met mct minmin maxmin select-maxmin" \
+    LOTS="data/tasks_2000.csv" ./scripts/exp_real.sh   # ≈ 1 h 30
+```
+
+`manual` = l'allocation faite à la main au TD3 (`data/allocation_manual.csv`),
+valable seulement pour le lot de 9 tâches. Fichiers : `results/exp_real_all/<lot>/`
+(`summary.csv`, `runs.csv`, une exécution par fichier ; log du lot de 2000 :
+`tasks_2000/run.log`).
+
+| Lot | Algo | Makespan mesuré (s) | Coût mesuré ($) | **S mesuré** | S prédit |
+|---|---|---|---|---|---|
+| 9 tâches | **select-maxmin** | 1,20 ± 0,05 | **0,001230** | **0,541** | 0,589 |
+| | manuelle (TD3) | 1,25 ± 0,13 | 0,002458 | 0,731 | 0,745 |
+| | MET | 1,37 ± 0,04 | 0,002428 | 0,762 | 0,778 |
+| | Min-Min | 0,87 ± 0,03 | 0,004272 | 0,868 | 1,026 |
+| | Max-Min | 1,08 ± 0,07 | 0,004272 | 0,931 | 0,998 |
+| | MCT | 1,10 ± 0,06 | 0,004272 | 0,937 | 0,998 |
+| | RR | 1,30 ± 0,30 | 0,004272 | 1,000 | 1,000 |
+| 500 tâches | **select-maxmin** | 65,5 ± 9,3 | **0,003118** | **0,864** | 0,819 |
+| | Min-Min | 46,7 ± 12,2 | 0,004272 | 0,899 | 0,917 |
+| | Max-Min | 47,6 ± 9,0 | 0,004272 | 0,904 | 0,914 |
+| | MCT | 51,8 ± 17,0 | 0,004315 | 0,938 | 0,921 |
+| | RR | 60,3 ± 20,1 | 0,004353 | 1,000 | 1,000 |
+| | MET | 73,1 ± 18,6 | 0,003820 | 1,011 | 1,026 |
+| 2000 tâches ‡ | **select-maxmin** | 162,6 ± 2,6 | 0,007263 | **0,969** | 0,915 |
+| | MCT | 165,4 ± 1,2 | 0,007204 | 0,970 | 0,918 |
+| | Min-Min | 160,6 ± 3,1 | 0,007360 | 0,973 | 0,919 |
+| | Max-Min | 164,3 ± 2,1 | 0,007318 | 0,977 | 0,915 |
+| | RR | 182,4 ± 60,4 | 0,007117 | 1,000 | 1,000 |
+| | MET | 230,3 ± 14,5 | 0,008019 | 1,181 | 1,160 |
+
+‡ **Processeur différent** : pour ce lot, GCP a démarré les 4 VM sur **AMD EPYC
+7B12** au lieu d'**Intel Xeon @ 2.20GHz** (toutes les autres sessions, relevé dans
+la colonne `cpu_model` des `*_vms.csv`). Sur AMD, les VM non bridées sont ≈ 35 %
+plus rapides (highcpu, 817 tâches : 92–93 s contre 142–145 s sur Intel). Les durées
+ne sont donc **pas comparables** aux autres sessions ; les algorithmes, eux, sont
+comparés entre eux dans les mêmes conditions.
+
+### Constats
+
+1. **Sur 9 et 500 tâches, select-maxmin a le meilleur score mesuré**, devant les
+   cinq heuristiques et devant l'allocation manuelle : il éteint des VM, ce que les
+   autres ne font pas. Sur 500 tâches son lot est plus long (vm3 bridée sur 2 de ses
+   3 exécutions, 71 s au lieu de ≈ 40 s), mais l'économie de 28 % compense.
+2. **Sur 2000 tâches, select-maxmin = Max-Min** : il garde les 4 VM, donc la même
+   allocation (817 / 397 / 388 / 398 tâches). L'écart 0,969 / 0,977 est du bruit ;
+   MCT et Min-Min sont aussi à moins de 1 %. On écrit « à égalité ». Tous battent RR
+   et MET.
+3. **RR a l'écart-type le plus grand** sur 2000 tâches : r1 = 112,8 s (vm3 pas encore
+   bridée, meilleure exécution de toutes), puis 212,8 s et 221,5 s.
+4. **Le classement mesuré suit le classement prédit**, sauf Min-Min sur 9 tâches
+   (prédit le plus lent, en réalité le plus rapide) : le modèle applique la
+   contention (× 1,4) à toute VM utilisée, même quand elle n'exécute qu'une tâche à
+   la fois. Il est trop pessimiste pour les VM peu chargées.
+5. **vm3 bridée, vm2 jamais** (2000 tâches) : 17 exécutions sur 18 avec vm3 lente
+   (≈ 160 s contre ≈ 90 s pour vm2 sur le même nombre de tâches) ; seule RR r1 était
+   normale. Sur 500 tâches, vm1 a aussi ralenti sur plusieurs r3 (48 à 66 s au lieu
+   de ≈ 31 s).
+6. **Le modèle est calibré sur Intel** : sur AMD il surestime les durées des VM non
+   bridées (≈ × 0,65). Réel/prédit ≈ 1,2 sur 2000 tâches uniquement parce que vm3
+   bridée compense. Piste : benchmark par plateforme, ou mesure des VM juste avant
+   de planifier.
+
+### Sensibilité aux poids (SIMULATION, `-explain -wcost 0.8`, 2000 tâches)
+
+| Poids coût / temps | Combinaison choisie | Coût ($) | Makespan (s) |
+|---|---|---|---|
+| 60 / 40 | 4 VM | 0,009687 | 136,1 |
+| 80 / 20 | 3 VM (sans vm1) | 0,008610 | 169,7 |
 
 ---
 
@@ -581,6 +672,7 @@ est du même ordre de grandeur que le gain de l'algorithme.
 | select-maxmin : combinaisons de **types** de VM, Max-Min sur chacune | Choix des VM exact et explicable ; passe à l'échelle avec le nombre de types (§ 8) |
 | Expériences réelles alternées (RR, select, RR…) | Une dérive des VM pendant la session touche les deux algorithmes (§ 9) |
 | S mesuré calculé par rapport à RR mesuré | Compare les deux algorithmes dans les mêmes conditions réelles |
+| Lot de 2000 « tous algorithmes » gardé malgré le passage sur AMD | Tous les algorithmes ont tourné dans les mêmes conditions ; signalé partout (§ 9 bis) |
 
 ---
 
@@ -590,9 +682,11 @@ est du même ordre de grandeur que le gain de l'algorithme.
 2. ~~Modèle + algorithmes classiques~~ : faits (§ 7).
 3. ~~Notre algorithme select-maxmin~~ : fait (§ 8).
 4. ~~Expériences réelles RR contre select-maxmin~~ : faites (§ 9).
-5. ~~Investigation vm3~~ : faite (§ 9) — variabilité des e2-medium, pas un hôte
-   défaillant. *(Optionnel)* mesurer le *steal time* pour le prouver.
-6. *(Optionnel)* Analyse de sensibilité : `-wcost 0.8` / `0.4` sur 500 et 2000 tâches.
+5. ~~Investigation vm3~~ : faite (§ 9) — rafales des e2-medium (doc GCP), pas un
+   hôte défaillant ; reste inexpliqué : pourquoi vm3 et pas vm2.
+6. ~~Analyse de sensibilité~~ : faite (`-wcost 0.8`, § 9 bis).
+6 bis. ~~Comparaison réelle de tous les algorithmes~~ : faite (§ 9 bis), intégrée au
+   rapport LaTeX.
 7. **Soutenance** : rapport écrit, slides (schéma d'architecture, graphiques),
    démo en direct (9 tâches, select-maxmin : seules vm2 et vm3 allumées), vidéo
    de secours, répétition à trois.

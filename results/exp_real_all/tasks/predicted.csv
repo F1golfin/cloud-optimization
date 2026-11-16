@@ -1,0 +1,8 @@
+algo,tasks,vms_used,makespan_s,cost_usd,score,feasible,ram_ok,runtime_ms,cloudopt-vm1,cloudopt-vm2,cloudopt-vm3,cloudopt-highcpu
+rr,9,4,1.215534,0.00427167,1.000000,true,true,0.000,3,2,2,2
+met,9,2,1.326241,0.00242833,0.777515,true,true,0.000,0,0,3,6
+mct,9,4,1.210514,0.00427167,0.998348,true,true,0.001,2,1,2,4
+minmin,9,4,1.295551,0.00427167,1.026331,true,true,0.002,2,1,2,4
+maxmin,9,4,1.210514,0.00427167,0.998348,true,true,0.001,2,1,2,4
+select-maxmin,9,2,1.265901,0.00123000,0.589341,true,true,0.030,0,5,4,0
+manual,9,3,1.215534,0.00245833,0.745298,true,true,0.000,3,3,3,0

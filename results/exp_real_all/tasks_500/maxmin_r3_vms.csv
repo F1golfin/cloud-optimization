@@ -1,0 +1,5 @@
+vm,tasks,first_start_s,last_end_s,active_s,busy_s,remote_runtime_s,mean_overhead_s,billed_s,cost_usd,cpu_model
+cloudopt-highcpu,204,0.000180,33.590580,33.590400,134.319643,113.269907,0.103185,60.000000,0.00181333,Intel(R) Xeon(R) CPU @ 2.20GHz
+cloudopt-vm1,100,0.000987,47.548479,47.547493,95.051246,80.411908,0.146393,60.000000,0.00122833,Intel(R) Xeon(R) CPU @ 2.20GHz
+cloudopt-vm2,96,0.001012,30.560784,30.559772,61.109589,51.879921,0.096142,60.000000,0.00061500,Intel(R) Xeon(R) CPU @ 2.20GHz
+cloudopt-vm3,100,0.000744,37.710451,37.709707,75.407645,64.365454,0.110422,60.000000,0.00061500,Intel(R) Xeon(R) CPU @ 2.20GHz
