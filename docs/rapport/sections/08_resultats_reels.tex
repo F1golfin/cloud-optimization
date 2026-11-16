@@ -1,0 +1,159 @@
+% ============================================================================
+\section{Résultats réels sur GCP}
+\label{sec:reels}
+% ============================================================================
+
+\begin{center}
+\fbox{\small Tous les chiffres de cette section sont des \textbf{mesures} sur les VM Google Cloud (\mesure{}).}
+\end{center}
+
+\subsection{Protocole}
+
+Script \code{scripts/exp\_real.sh}. Pour chaque lot : le scheduler produit
+l'allocation de RR et celle de \sel{} (avec leurs prédictions), puis
+l'orchestrateur exécute chacune \textbf{3 fois, en alternance} (RR, \sel, RR,
+\sel...) : une dérive des VM pendant la session touche ainsi les deux algorithmes.
+Les 4 VM sont allumées (RR les utilise toutes) ; \sel{} n'envoie des tâches qu'aux
+VM qu'il a choisies. Le coût mesuré applique la même règle que le modèle (fenêtre
+active de chaque VM, minimum 60~s). Le score mesuré prend pour référence RR
+\emph{mesuré} dans la même session.
+
+\subsection{Synthèse}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{llrrrrc}
+\toprule
+\textbf{Lot} & \textbf{Algorithme} & \textbf{Makespan (s)} & \textbf{Coût (\$)} & $\boldsymbol{S}$ \textbf{mesuré} & $\boldsymbol{S}$ \textbf{prédit} & \textbf{VM} \\
+\midrule
+\multirow{2}{*}{9 tâches}    & RR    & 1,12 $\pm$ 0,09 & 0,004272 & 1,000 & 1,000 & 4 \\
+                             & \sel  & 1,38 $\pm$ 0,15 & \textbf{0,001230} & \textbf{0,664} & 0,589 & 2 \\
+\midrule
+\multirow{2}{*}{500 tâches}  & RR    & 52,2 $\pm$ 19,2$^{*}$ & 0,004320 & 1,000 & 1,000 & 4 \\
+                             & \sel  & 55,8 $\pm$ 16,9$^{*}$ & \textbf{0,003093} & \textbf{0,857} & 0,819 & 3 \\
+\midrule
+\multirow{2}{*}{2000 tâches} & RR    & 333,6 $\pm$ 6,7 & 0,011819 & 1,000 & 1,000 & 4 \\
+                             & \sel  & \textbf{254,3 $\pm$ 2,8} & 0,011453 & \textbf{0,886} & 0,915 & 4 \\
+\bottomrule
+\end{tabular}
+\caption{Moyenne $\pm$ écart-type sur 3 exécutions (session principale, \code{results/exp\_real/}). $^{*}$ écart-type gonflé par le ralentissement d'une VM (section~\ref{sec:vm3}).}
+\label{tab:reels}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  ybar, width=0.48\textwidth, height=5.5cm, bar width=12pt,
+  title={\small Coût mesuré (millidollars)}, ymin=0,
+  xtick={1,2,3}, xticklabels={9,500,2000}, xlabel={Tâches},
+  xmin=0.5, xmax=3.5, grid=major, grid style={gray!20},
+  legend style={font=\footnotesize, at={(0.03,0.97)}, anchor=north west}]
+  \addplot[fill=rrcol] coordinates {(1,4.272) (2,4.320) (3,11.819)};
+  \addplot[fill=selcol] coordinates {(1,1.230) (2,3.093) (3,11.453)};
+  \legend{RR, \sel}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[
+  ybar, width=0.48\textwidth, height=5.5cm, bar width=12pt,
+  title={\small Score $S$ mesuré (plus bas = mieux)}, ymin=0.5, ymax=1.1,
+  xtick={1,2,3}, xticklabels={9,500,2000}, xlabel={Tâches},
+  xmin=0.5, xmax=3.5, grid=major, grid style={gray!20},
+  legend style={font=\footnotesize, at={(0.03,0.97)}, anchor=north west}]
+  \addplot[fill=rrcol] coordinates {(1,1.000) (2,1.000) (3,1.000)};
+  \addplot[fill=selcol] coordinates {(1,0.664) (2,0.857) (3,0.886)};
+  \legend{RR, \sel}
+\end{axis}
+\end{tikzpicture}
+\caption{RR contre \sel{} en conditions réelles (session principale).}
+\label{fig:reels}
+\end{figure}
+
+\paragraph{Lecture.}
+\begin{itemize}
+  \item \textbf{9 tâches} : 2 VM allumées au lieu de 4, \textbf{coût $-71\,\%$}. Le
+        lot est 23\,\% plus long (le modèle prévoyait $+4\,\%$) : 9 tâches tassées sur
+        2 VM à 2~vCPU ralentissent un peu plus que prévu. Le score reste bien
+        meilleur ($-34\,\%$).
+  \item \textbf{500 tâches} : vm1 éteinte, \textbf{coût $-29\,\%$}. Lors de la première
+        répétition, sans incident, les deux algorithmes ont le même temps (41,4~s
+        contre 41,5~s) et $S \approx 0{,}83$ pour 0,819 prédit.
+  \item \textbf{2000 tâches} : les 4 VM, meilleure répartition : \textbf{temps
+        $-24\,\%$}, coût $-3\,\%$.
+\end{itemize}
+
+\subsection{Précision du modèle, VM par VM}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Lot} & \textbf{Algorithme} & \textbf{highcpu} & \textbf{vm1} & \textbf{vm2} & \textbf{vm3} \\
+\midrule
+9    & RR    & 0,72 & 0,89 & 1,01 & 0,93 \\
+9    & \sel  & —    & —    & 0,92 & 1,12 \\
+500  & RR    & 1,02 & 1,09 & 0,92 & 0,99 (puis 1,83) \\
+500  & \sel  & 1,05 & —    & 0,95 & 1,30 \\
+2000 & RR    & 1,02 & 1,09 & 1,15 & \textbf{1,91} \\
+2000 & \sel  & 1,05 & 1,15 & 0,96 & \textbf{1,87} \\
+\bottomrule
+\end{tabular}
+\caption{Heure de fin mesurée / prédite pour chaque VM (médiane des 3 exécutions).}
+\label{tab:precision}
+\end{table}
+
+Hors vm3, le modèle se trompe de \textbf{$-8\,\%$ à $+15\,\%$} (highcpu : $+2$ à
+$+5\,\%$ partout). Sur 9 tâches, les écarts plus grands sont normaux (2 ou 3 tâches
+par VM). Mais le makespan est fixé par la VM la plus lente : \textbf{une seule VM
+ralentie suffit à fausser la prédiction du lot entier}.
+
+\subsection{Investigation : le ralentissement des e2-medium}
+\label{sec:vm3}
+
+Lors des exécutions longues, vm3 (e2-medium) a tourné 1,7 à 1,9 fois plus
+lentement que vm2, de même type et de même charge. Le \emph{temps de calcul mesuré
+par les workloads eux-mêmes} doublait : ce n'était pas le réseau, mais le
+processeur. Nous avons envisagé deux causes : un \textbf{hôte physique défaillant}
+(« voisin bruyant ») ou le \textbf{bridage des VM à cœur partagé} (une e2-medium
+peut utiliser ses 2~vCPU par rafales, mais n'a droit en moyenne qu'à une part du
+processeur).
+
+Pour trancher, nous avons \textbf{supprimé et recréé vm3} (nouvelle machine,
+probablement sur un autre hôte), puis refait des mesures :
+\begin{itemize}
+  \item \textbf{charge courte} ($\approx 2$~min, expérience workers) : la nouvelle vm3 est
+        normale, avec le même débit que vm2 ;
+  \item \textbf{charge longue} (2000 tâches) : elle se dégrade comme l'ancienne,
+        puis redevient normale à la dernière exécution (148~s mesurées pour 136~s
+        prédites, soit $+9\,\%$). vm2 a aussi connu un épisode lent.
+\end{itemize}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{llcc}
+\toprule
+\textbf{Session} & \textbf{vm3} & \textbf{RR : r1 / r2 / r3 (s)} & \textbf{\sel{} : r1 / r2 / r3 (s)} \\
+\midrule
+1 & ancienne & 325,9 / 336,9 / 338,2 & 256,8 / 254,6 / 251,3 \\
+2 & ancienne & 241,5 / 340,9 / 339,4 & 255,5 / 253,7 / 256,2 \\
+3 & nouvelle & 241,4 / 347,6 / \textit{exclue}$^{\dagger}$ & 263,9 / 262,2 / 148,1 \\
+\bottomrule
+\end{tabular}
+\caption{Makespan des 18 exécutions de 2000 tâches. $^{\dagger}$ Surcoût SSH multiplié par 5 sur les 4 VM en même temps, avec un temps de calcul normal : incident côté machine de contrôle ou réseau, pas côté VM.}
+\label{tab:sessions}
+\end{table}
+
+\paragraph{Conclusion de l'investigation.} Ce n'était pas un hôte défaillant
+propre à l'ancienne vm3, mais un comportement des \textbf{e2-medium à cœur
+partagé} : leur vitesse varie fortement sous charge prolongée, puis remonte.
+L'explication la plus cohérente est un bridage par crédits de processeur ; elle
+n'est pas prouvée (la mesure directe serait le \emph{steal time} des VM). Les VM à
+cœur dédié (vm1, highcpu) ont été stables dans toutes nos mesures.
+
+Sur 2000 tâches, \sel{} est plus rapide dans \textbf{6 paires d'exécutions
+valides sur 8} ; dans les deux autres, vm3 était moins bridée pendant l'exécution
+de RR. Sur ces lots longs, les deux makespans sont fixés par l'e2-medium la plus
+bridée : la variabilité de ces VM est du même ordre que le gain de l'algorithme.
+\sel{} reste toutefois plus prévisible que RR (251 à 264~s contre 241 à 348~s sur les
+sessions 1 à 3), en partie parce qu'il charge moins vm3 (398 tâches au lieu de 500).

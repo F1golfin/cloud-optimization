@@ -1,0 +1,82 @@
+% ============================================================================
+\section{Problème et objectifs}
+% ============================================================================
+
+\subsection{La question du projet et notre scénario}
+
+Le projet consiste à construire une petite plateforme d'exécution distribuée et
+à déterminer, pour un lot de tâches donné, \textbf{sur quelle machine virtuelle
+exécuter chaque tâche}.
+
+L'énoncé sépare quatre éléments, que l'on retrouve dans notre architecture
+(section~\ref{sec:architecture}) : les \textbf{workloads} (programmes compilés),
+l'\textbf{infrastructure} (VM Google Compute Engine), le \textbf{scheduler}
+(qui \emph{décide} où va chaque tâche) et l'\textbf{orchestrateur} (qui
+\emph{exécute} réellement les tâches et collecte les résultats).
+
+Pour donner un sens à l'optimisation, nous nous plaçons dans la situation
+(fictive) d'une \textbf{petite entreprise de traitement par lots}, qui exécute
+des calculs pour ses clients : calcul numérique, traitement mémoire, calcul
+matriciel, tri de données. Ce n'est pas un service web : un résultat livré
+quelques secondes plus tard est acceptable, mais chaque euro dépensé inutilement
+se répète à chaque lot. Ses priorités, par ordre d'importance :
+\begin{enumerate}
+  \item \textbf{réduire la facture cloud} ;
+  \item \textbf{conserver un délai raisonnable} ;
+  \item pouvoir traiter des lots de quelques tâches à plusieurs milliers ;
+  \item rester simple à maintenir et à expliquer.
+\end{enumerate}
+
+\subsection{Objectif et contrainte}
+
+Nous évaluons une allocation par deux grandeurs :
+\begin{itemize}
+  \item $D$, le \textbf{makespan} : le temps entre le début du lot et la fin de la
+        dernière tâche ;
+  \item $C$, le \textbf{coût} : pour chaque VM utilisée, son temps d'utilisation
+        (avec la facturation minimale de 60~s de GCP) multiplié par son prix horaire.
+\end{itemize}
+
+Ces deux grandeurs n'ont pas la même unité. Nous les normalisons par celles de
+\textbf{Round Robin} (RR), notre référence, et les combinons en un score :
+\begin{equation}
+  S = 0{,}6 \cdot \frac{C}{\Crr} + 0{,}4 \cdot \frac{D}{\Drr}
+  \qquad \text{(plus bas = mieux ; RR vaut 1)}
+  \label{eq:score}
+\end{equation}
+
+Le poids de 60\,\% sur le coût traduit la priorité de l'entreprise. Ce n'est pas
+une valeur imposée : c'est un \textbf{paramètre} du scheduler (option
+\code{-wcost}). Pour éviter qu'une solution très économique mais très lente soit
+retenue, nous ajoutons une \textbf{contrainte de délai} :
+\begin{equation}
+  D \le 1{,}25 \cdot \Drr
+  \label{eq:deadline}
+\end{equation}
+Une allocation qui la viole est dite \emph{non admissible}, quel que soit son
+score. Le seuil de 125\,\% est un choix de conception, lui aussi paramétrable
+(\code{-deadline}).
+
+\subsection{Ce qui a changé depuis notre première version}
+
+Une première version du projet proposait un algorithme « V8 » (glouton pondéré
+puis recherche locale), évalué uniquement en simulation, et dont le modèle de
+durée sous-estimait les temps réels d'un facteur 3. Nous avons repris le projet
+en partant des mesures. Le scénario, le score $S$ et la contrainte de délai sont
+conservés ; le reste a été refait :
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.3cm}XX}
+\toprule
+ & \textbf{Première version} & \textbf{Version actuelle} \\
+\midrule
+Mesures & 180 mesures, VM3 recopiée sur VM2 & 4 VM mesurées séparément + mesure du parallélisme réel \\
+Modèle de durée & médiane du benchmark (erreur $\times 3$) & médiane $\times$ contention + surcoût SSH (erreur $\approx \pm 10\,\%$) \\
+Algorithme & V8 : recherche locale qui minimise le makespan & \sel{} : choix exact des VM à allumer + Max-Min, minimise $S$ \\
+Exécution distribuée & non démontrée & orchestrateur Go, des milliers de tâches exécutées \\
+Résultats & simulés uniquement & simulés \emph{et} mesurés sur GCP \\
+\bottomrule
+\end{tabularx}
+\caption{Évolution du projet.}
+\end{table}

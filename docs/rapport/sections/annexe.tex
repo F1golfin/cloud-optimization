@@ -1,0 +1,66 @@
+% ============================================================================
+\section{Reproduire les résultats}
+\label{sec:repro}
+% ============================================================================
+
+Dépôt : \url{https://github.com/F1golfin/cloud-optimization}. Prérequis : Go
+$\ge$ 1.22, \code{make}, et pour la partie GCP le Google Cloud SDK authentifié
+sur le projet.
+
+\paragraph{Compilation et tests (sans GCP).}
+\begin{lstlisting}
+make                 # workloads locaux + orchestrator, scheduler, gentasks
+make linux           # workloads pour les VM (linux/amd64)
+make test            # tests du modèle et des algorithmes
+\end{lstlisting}
+
+\paragraph{Simulation (sans GCP).}
+\begin{lstlisting}
+./bin/gentasks -n 500 -seed 42
+./bin/scheduler -compare -tasks data/tasks_500.csv
+./bin/scheduler -explain -tasks data/tasks_500.csv
+./bin/scheduler -algo select-maxmin -tasks data/tasks_500.csv -out data/alloc.csv
+\end{lstlisting}
+
+\paragraph{Mesures et expériences sur GCP.}
+\begin{lstlisting}
+./scripts/manage_vms.sh start
+./scripts/deploy.sh
+./scripts/bench_vms.sh           # benchmark -> data/vm_performance.csv
+./scripts/exp_workers.sh         # parallélisme réel de chaque VM
+./scripts/exp_real.sh            # RR contre select-maxmin, 3 répétitions
+./bin/orchestrator -alloc data/alloc.csv -out results/run.csv
+./scripts/manage_vms.sh stop     # toujours à la fin
+\end{lstlisting}
+
+\section{Organisation du dépôt}
+
+\begin{lstlisting}
+workloads/<nom>/main.go   les 4 workloads
+orchestrator/             l'orchestrateur
+scheduler/model/          modèle : prédiction, simulation, coût, score
+scheduler/algorithms/     RR, MET, MCT, Min-Min, Max-Min, select-maxmin
+scheduler/cmd/            programmes scheduler et gentasks
+scripts/                  VM, déploiement, benchmark, expériences
+data/                     tâches, machines, mesures, allocations
+results/                  benchmarks, simulations, exécutions réelles
+docs/RESULTATS.md         journal détaillé de toutes les mesures
+\end{lstlisting}
+
+\section{Formats de fichiers}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.6cm}X}
+\toprule
+\textbf{Fichier} & \textbf{Colonnes} \\
+\midrule
+\code{tasks\_N.csv}         & task\_id, workload, size \\
+\code{machines.csv}         & vm, machine\_type, vcpu, ram\_mb, price\_per\_hour, contention \\
+\code{vm\_performance.csv}  & machine, workload, size, runs, median\_s, mean\_s, std\_s, max\_rss\_kb \\
+\code{allocation.csv}       & task\_id, workload, size, vm (ordre = ordre d'exécution sur chaque VM) \\
+\code{results/<run>.csv}    & task\_id, workload, size, vm, worker, start\_s, end\_s, duration\_s, remote\_runtime\_s, overhead\_s, exit\_code, error \\
+\bottomrule
+\end{tabularx}
+\caption{Formats d'entrée et de sortie.}
+\end{table}

@@ -1,0 +1,102 @@
+% ============================================================================
+\section{Méthodes d'ordonnancement}
+\label{sec:algos}
+% ============================================================================
+
+Tous les algorithmes utilisent le même modèle (section~\ref{sec:formulation}) et
+produisent un \code{allocation.csv} directement exécutable par l'orchestrateur.
+
+\subsection{Algorithmes de référence}
+
+Ce sont les heuristiques classiques de \emph{list scheduling} sur machines
+hétérogènes ($n$ tâches, $m$ VM).
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.1cm}X>{\raggedright\arraybackslash}p{1.7cm}}
+\toprule
+\textbf{Algorithme} & \textbf{Principe} & \textbf{Coût} \\
+\midrule
+Round Robin & tâche $i$ $\rightarrow$ VM $i \bmod m$ ; ignore durées, prix et charge. \textbf{Référence} ($S = 1$). & $O(n)$ \\
+MET & chaque tâche va sur la VM où \emph{sa} durée est minimale, sans regarder la file. & $O(nm)$ \\
+MCT & dans l'ordre du lot, chaque tâche va sur la VM où elle \emph{finirait} le plus tôt, compte tenu des tâches déjà placées. & $O(nm)$ \\
+Min-Min & à chaque tour, on place la tâche dont la meilleure heure de fin est la plus \emph{petite}. & $O(n^2 m)$ \\
+Max-Min & à chaque tour, on place la tâche dont la meilleure heure de fin est la plus \emph{grande} (grosses tâches d'abord). & $O(n^2 m)$ \\
+\bottomrule
+\end{tabularx}
+\caption{Heuristiques de référence (\code{scheduler/algorithms/}).}
+\end{table}
+
+Ces heuristiques optimisent le \textbf{temps} : aucune ne regarde le prix des VM,
+et elles utilisent toujours toutes les machines disponibles. Les simulations de
+la section~\ref{sec:simu} montrent que c'est précisément ce qui leur manque.
+
+\subsection{Notre algorithme : \sel}
+
+\paragraph{Idée.} Les mesures ont montré que (1) les VM ont la même vitesse par
+tâche, (2) une VM allumée coûte au moins 60~s, et (3) Max-Min répartit déjà bien
+les tâches. Le levier principal n'est donc pas la répartition fine, mais
+\textbf{le choix des VM à allumer}. De plus, deux VM du même type (vm2 et vm3)
+sont interchangeables : on ne se demande pas « quelles VM allumer », mais
+\textbf{« combien de VM de chaque type allumer »}.
+
+\paragraph{Méthode, en deux niveaux.}
+\begin{enumerate}
+  \item \textbf{Choix du nombre de VM par type — exact.} On essaie toutes les
+        combinaisons : de 0 à $n_t$ VM pour chaque type $t$, sauf « aucune VM ».
+        Pour notre parc : e2-standard-2 (0–1) $\times$ e2-medium (0–2) $\times$
+        e2-highcpu-4 (0–1), soit $2 \times 3 \times 2 - 1 = 11$ combinaisons.
+  \item \textbf{Répartition — heuristique.} Sur chaque combinaison, Max-Min
+        (le meilleur algorithme classique dans nos simulations).
+\end{enumerate}
+On garde la combinaison de plus petit score $S$ parmi celles qui respectent le
+délai et la mémoire.
+
+\begin{algorithm}[H]
+\caption{\sel}
+\begin{algorithmic}[1]
+\Require tâches $T$, VM $M$ regroupées par type, modèle $p_{ij}$
+\Ensure une allocation ordonnée
+\State $\mathit{ref} \gets$ évaluation de Round Robin sur toutes les VM \Comment{donne $\Drr$, $\Crr$}
+\State $\mathit{meilleure} \gets$ aucune
+\For{chaque combinaison $(c_1,\dots,c_K)$ avec $0 \le c_t \le n_t$, non toutes nulles}
+  \State $V \gets$ les $c_t$ premières VM de chaque type $t$
+  \State $A \gets$ Max-Min restreint aux VM de $V$
+  \State calculer $D(A)$, $C(A)$ par simulation, puis $S(A)$
+  \If{$D(A) \le 1{,}25\,\Drr$ \textbf{et} RAM respectée \textbf{et} $S(A) < S(\mathit{meilleure})$}
+    \State $\mathit{meilleure} \gets A$
+  \EndIf
+\EndFor
+\State \Return $\mathit{meilleure}$ (ou Round Robin si aucune combinaison n'est admissible)
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Justification et propriétés.}
+\begin{itemize}
+  \item \textbf{Décomposition} : choisir les ressources, puis ordonnancer dessus.
+        Chaque partie s'explique simplement ; la première est exacte.
+  \item \textbf{Jamais pire que Max-Min} (dès que Max-Min est admissible) : la
+        combinaison « toutes les VM » fait partie des essais. Si aucune combinaison
+        n'est admissible, on renvoie Round Robin, admissible par définition.
+        Ces propriétés sont vérifiées par des tests automatiques.
+  \item \textbf{Général} : aucun nom de VM, prix ou durée n'est écrit dans le code ;
+        tout vient de \code{machines.csv} et \code{vm\_performance.csv}. Le même code
+        éteint 2, 1 ou 0 VM selon le lot (section~\ref{sec:simu}). L'objectif reste
+        paramétrable (\code{-wcost}, \code{-deadline}).
+  \item \textbf{Optimise directement $S$}, contrairement à notre première version,
+        dont la recherche locale minimisait le makespan sous un budget de coût.
+  \item \textbf{Déterministe et explicable} : \code{./bin/scheduler -explain} affiche
+        les 11 combinaisons et leur score (tableau~\ref{tab:explain500}).
+\end{itemize}
+
+\paragraph{Complexité et passage à l'échelle.} Le nombre de combinaisons est
+$\prod_t (n_t + 1) - 1$ : il dépend du nombre de \emph{types}, pas du nombre de
+VM. Avec 3 types et 10 VM de chacun, on obtient 1\,330 combinaisons, contre
+environ $10^9$ si l'on traitait chaque VM séparément. Chaque combinaison coûte
+un Max-Min en $O(n^2 m)$. Temps mesuré : \textbf{114~ms pour 2000 tâches}. Au-delà
+de quelques types, il faudrait remplacer l'énumération par un glouton (ajouter
+les types au meilleur débit par dollar jusqu'à tenir le délai).
+
+\paragraph{Intégration.} En mode \code{-algo \sel}, le scheduler affiche aussi
+les VM à démarrer (\code{VMS="..." ./scripts/manage\_vms.sh start}) : les VM non
+choisies restent éteintes.

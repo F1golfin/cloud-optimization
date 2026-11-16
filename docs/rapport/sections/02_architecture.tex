@@ -1,0 +1,84 @@
+% ============================================================================
+\section{Architecture}
+\label{sec:architecture}
+% ============================================================================
+
+\subsection{Vue d'ensemble}
+
+La figure~\ref{fig:archi} reprend le flux de données de l'énoncé. La
+\textbf{décision} (scheduler) et l'\textbf{exécution} (orchestrateur) sont deux
+programmes séparés, reliés par un simple fichier CSV : n'importe quelle
+allocation (Round Robin, manuelle, optimisée) peut être exécutée par le même
+orchestrateur.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.55cm and 0.6cm,
+  box/.style={draw, rounded corners, align=center, minimum height=0.9cm, font=\small, fill=white},
+  file/.style={draw, align=center, font=\small\ttfamily, fill=gray!10, minimum height=0.7cm},
+  vm/.style={draw, rounded corners, align=center, font=\small, fill=selcol!12, minimum width=2.2cm, minimum height=0.9cm},
+  arr/.style={-{Stealth[length=2.5mm]}, thick}]
+  \node[file] (tasks) {tasks.csv};
+  \node[file, right=of tasks] (mach) {machines.csv};
+  \node[file, right=of mach] (perf) {vm\_performance.csv};
+  \node[box, below=0.8cm of mach, fill=selcol!20, minimum width=5cm] (sched) {\textbf{Scheduler} (Go)\\ RR, MET, MCT, Min-Min, Max-Min, \sel};
+  \node[file, below=of sched] (alloc) {allocation.csv\\ \normalfont\footnotesize task\_id, workload, size, vm};
+  \node[box, below=of alloc, fill=accent!15, minimum width=5cm] (orch) {\textbf{Orchestrateur} (Go)\\ 1 file par VM, N workers, SSH};
+  \node[vm, below left=0.9cm and 2.2cm of orch] (v1) {vm1\\ \footnotesize e2-standard-2};
+  \node[vm, right=0.35cm of v1] (v2) {vm2\\ \footnotesize e2-medium};
+  \node[vm, right=0.35cm of v2] (v3) {vm3\\ \footnotesize e2-medium};
+  \node[vm, right=0.35cm of v3] (v4) {highcpu\\ \footnotesize e2-highcpu-4};
+  \node[file, below=2.3cm of orch] (res) {results.csv \quad \normalfont\footnotesize(une ligne par tâche, horodatée)};
+  \draw[arr] (tasks) -- (sched);
+  \draw[arr] (mach) -- (sched);
+  \draw[arr] (perf) -- (sched);
+  \draw[arr] (sched) -- (alloc);
+  \draw[arr] (alloc) -- (orch);
+  \foreach \vmnode in {v1,v2,v3,v4} {
+    \draw[arr] (orch) -- (\vmnode.north);
+    \draw[arr, gray] (\vmnode.south) -- (res);
+  }
+  \node[font=\footnotesize, gray, right=0.2cm of perf] {benchmarks};
+\end{tikzpicture}
+\caption{Architecture et flux de données. Les flèches grises représentent la
+collecte des résultats par la machine de contrôle.}
+\label{fig:archi}
+\end{figure}
+
+\subsection{Composants et choix de conception}
+
+Les quatre composants (workloads, infrastructure, scheduler, orchestrateur) et
+le langage Go sont fixés par l'énoncé. Le tableau~\ref{tab:composants} indique
+où se trouve chacun dans le dépôt.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.6cm}X>{\raggedright\arraybackslash}p{3.4cm}}
+\toprule
+\textbf{Composant} & \textbf{Rôle} & \textbf{Dans le dépôt} \\
+\midrule
+Workloads & 4 programmes Go compilés & \code{workloads/} \\
+Infrastructure & 4 VM Compute Engine : création, démarrage, arrêt, déploiement, benchmark & \code{scripts/} \\
+Scheduler & modèle de prédiction et algorithmes ; écrit \code{allocation.csv} & \code{scheduler/} \\
+Orchestrateur & exécute une allocation sur les VM et collecte les résultats & \code{orchestrator/} \\
+\bottomrule
+\end{tabularx}
+\caption{Composants du projet.}
+\label{tab:composants}
+\end{table}
+
+Dans ce cadre, nous avons fait quatre choix qui nous sont propres :
+\begin{itemize}
+  \item \textbf{Scheduler et orchestrateur reliés par un simple CSV} : chaque partie
+        se teste seule, le scheduler tourne sans GCP, et n'importe quelle allocation
+        (Round Robin, manuelle, optimisée) est exécutable par le même orchestrateur.
+  \item \textbf{Compilation unique en \code{linux/amd64}} : le poste de contrôle est
+        en ARM et les VM en x86 ; on copie des binaires statiques, rien n'est à
+        installer sur les VM.
+  \item \textbf{SSH avec une connexion réutilisée par VM}, plutôt qu'un outil
+        d'orchestration complet : simple à expliquer ; son surcoût par tâche est
+        mesuré et réduit (section~\ref{sec:orchestration}).
+  \item \textbf{Lots générés avec une graine fixe} : toute l'équipe obtient les mêmes
+        lots, donc les mêmes résultats.
+\end{itemize}

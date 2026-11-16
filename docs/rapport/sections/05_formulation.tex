@@ -1,0 +1,90 @@
+% ============================================================================
+\section{Formulation du problème d'ordonnancement}
+\label{sec:formulation}
+% ============================================================================
+
+\subsection{Données et variables de décision}
+
+\begin{itemize}
+  \item $T$ : l'ensemble des tâches du lot ; chaque tâche $i$ a un workload et une taille.
+  \item $M$ : l'ensemble des VM ; chaque VM $j$ a un type, $k_j$ workers (= vCPU),
+        une RAM et un prix horaire $\pi_j$.
+  \item $x_{ij} \in \{0,1\}$ : vaut 1 si la tâche $i$ est exécutée sur la VM $j$.
+  \item L'\textbf{ordre} des tâches dans la file de chaque VM, car l'orchestrateur
+        les exécute dans l'ordre du fichier. L'ordre fait donc partie de la décision.
+\end{itemize}
+
+Une VM qui ne reçoit aucune tâche n'est pas allumée et ne coûte rien : choisir
+les $x_{ij}$, c'est aussi choisir \textbf{quelles VM allumer}.
+
+\subsection{Modèle de durée}
+
+La durée prédite de la tâche $i$ sur la VM $j$ combine les trois mesures de la
+section~\ref{sec:mesures} :
+\begin{equation}
+  p_{ij} = \underbrace{\tilde{t}_{ij}}_{\text{médiane du benchmark}}
+  \times \underbrace{\gamma_j}_{\text{contention}}
+  + \underbrace{\omega}_{\text{surcoût SSH}}
+  \label{eq:pij}
+\end{equation}
+avec $\gamma_j = 1{,}40$ pour les VM à 2~vCPU et $1{,}32$ pour highcpu
+(ralentissement mesuré quand tous les workers tournent, section~\ref{sec:workers})
+et $\omega = 0{,}1$~s.
+
+\subsection{Simulation, makespan et coût}
+
+Pour évaluer une allocation sans l'exécuter, nous simulons exactement ce que fera
+l'orchestrateur : chaque VM $j$ dispose de $k_j$ workers ; chaque tâche, dans
+l'ordre de la file, est confiée au worker qui se libère le premier. On obtient
+l'heure de fin $T_j$ de chaque VM, puis :
+\begin{align}
+  D &= \max_{j \in M} T_j \\
+  C &= \sum_{j \,:\, \text{VM utilisée}} \max(60\ \text{s},\, T_j) \cdot \frac{\pi_j}{3600}
+\end{align}
+La facturation minimale de 60~s a une conséquence importante : \textbf{pour un
+lot de moins d'une minute, le coût ne dépend que des VM allumées}, pas de la
+façon dont on répartit les tâches. Au-delà, il dépend aussi du temps passé sur
+chaque VM.
+
+\subsection{Contraintes et objectif}
+
+\begin{align}
+  & \textstyle\sum_{j \in M} x_{ij} = 1 \quad \forall i \in T
+    && \text{(chaque tâche exactement une fois)} \\
+  & D \le 1{,}25 \cdot \Drr
+    && \text{(délai, éq.~\ref{eq:deadline})} \\
+  & k_j \cdot \max_{i : x_{ij}=1} \mathrm{RSS}_{ij} \le \mathrm{RAM}_j \quad \forall j
+    && \text{(mémoire)} \\
+  & \text{minimiser } S = 0{,}6\, C/\Crr + 0{,}4\, D/\Drr
+    && \text{(éq.~\ref{eq:score})}
+\end{align}
+$\mathrm{RSS}_{ij}$ est la mémoire maximale mesurée de la tâche. Avec nos tailles,
+la contrainte mémoire est toujours respectée (4 $\times$ 515~Mo $<$ 4~Go), mais
+elle est vérifiée par le programme.
+
+C'est un problème d'ordonnancement sur machines hétérogènes avec choix des
+ressources, combinatoire : $|M|^{|T|}$ affectations possibles (plus de
+$10^{1200}$ pour 2000 tâches et 4 VM). Nous utilisons donc des heuristiques.
+
+\subsection{Validation du modèle}
+
+Avant de comparer des algorithmes avec ce modèle, nous avons vérifié qu'il prédit
+correctement des exécutions réelles. Sur le premier lot réel (9 tâches, RR) :
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Modèle} & \textbf{Makespan prédit} & \textbf{Makespan mesuré} & \textbf{Réel / prédit} \\
+\midrule
+Naïf : médiane seule (comme notre première version) & 0,80 s & 1,32 s & $\times$ 1,65 \\
+Calibré : éq.~\eqref{eq:pij}                        & 1,22 s & 1,32 s & $\times$ 1,08 \\
+\bottomrule
+\end{tabular}
+\caption{Validation du modèle sur un lot qui n'a pas servi à le calibrer.}
+\end{table}
+
+Ce contrôle est un test automatique du projet (\code{TestPredictionMatchesRealRun}).
+Sur l'expérience « workers », qui a servi au calibrage, l'erreur est de 2\,\% :
+le chiffre honnête est celui du lot indépendant, $\times 1{,}08$. La précision du
+modèle sur les grandes expériences réelles est analysée en section~\ref{sec:reels}.

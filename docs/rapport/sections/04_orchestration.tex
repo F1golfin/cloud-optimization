@@ -1,0 +1,80 @@
+% ============================================================================
+\section{Implémentation distribuée et orchestration}
+\label{sec:orchestration}
+% ============================================================================
+
+\subsection{Déploiement}
+
+Les VM sont gérées par des scripts \code{gcloud} qui lisent une configuration
+unique (\code{scripts/config.sh} : projet, zone, liste des VM et leur type).
+
+\begin{lstlisting}
+./scripts/manage_vms.sh create   # crée les VM manquantes, corrige le type si besoin
+./scripts/manage_vms.sh start
+./scripts/deploy.sh              # compile en linux/amd64 et copie les binaires
+./scripts/manage_vms.sh stop     # toujours à la fin d'une session
+\end{lstlisting}
+
+\code{deploy.sh} compile les quatre workloads \textbf{une seule fois}, sur la
+machine de contrôle, pour Linux x86\_64 (\code{GOOS=linux GOARCH=amd64}, binaires
+statiques), puis les copie sur chaque VM et vérifie qu'ils s'y exécutent. Aucune
+installation n'est nécessaire sur les VM.
+
+\subsection{L'orchestrateur}
+
+L'orchestrateur (\code{orchestrator/main.go}) exécute une allocation telle quelle :
+il ne déplace jamais une tâche vers une autre VM que celle choisie par le scheduler.
+
+\begin{itemize}
+  \item \textbf{Une file par VM}, dans l'ordre de \code{allocation.csv}. Toutes les
+        VM travaillent en parallèle ; sur chaque VM, \textbf{N workers} (par défaut
+        N = nombre de vCPU, section~\ref{sec:workers}) vident la file : quand un
+        worker finit une tâche, il prend la suivante.
+  \item \textbf{Une seule connexion SSH par VM}, ouverte au départ et réutilisée par
+        toutes ses tâches (multiplexage OpenSSH \code{ControlMaster}), avec la clé et
+        la vérification d'identité d'hôte de \code{gcloud}.
+  \item \textbf{Horodatage sur la machine de contrôle} : début et fin de chaque
+        tâche sont mesurés avec une seule horloge ; aucune synchronisation entre VM
+        n'est nécessaire.
+  \item \textbf{Séparation calcul / surcoût} : chaque workload renvoie son propre
+        temps de calcul ; l'orchestrateur en déduit
+        \code{overhead\_s = durée mesurée $-$ runtime\_s}, le coût du réseau et de SSH.
+  \item \textbf{Robustesse} : une tâche en échec n'arrête pas les autres (code de
+        retour et erreur enregistrés) ; au démarrage, l'orchestrateur attend que le
+        serveur SSH des VM soit prêt (une VM \code{RUNNING} refuse encore les
+        connexions pendant 20 à 40~s) ; il relève le modèle de processeur de chaque VM.
+\end{itemize}
+
+\paragraph{Sorties.} \code{results/<run>.csv} contient une ligne par tâche
+(\code{task\_id, workload, size, vm, worker, start\_s, end\_s, duration\_s,
+remote\_runtime\_s, overhead\_s, exit\_code, error}) ; \code{results/<run>\_vms.csv}
+résume chaque VM (fenêtre active, temps occupé, surcoût moyen, durée facturée,
+coût, processeur).
+
+\subsection{Premières preuves d'exécution distribuée}
+
+Premier lot réel : les 9 tâches du TD3 réparties par Round Robin sur les 4 VM.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{VM} & \textbf{Tâches} & \textbf{Fenêtre active (s)} & \textbf{Temps de calcul (s)} & \textbf{Surcoût SSH / tâche} \\
+\midrule
+highcpu & 2 & 0,54 & 0,58 & 0,077 s \\
+vm1     & 3 & 1,31 & 1,68 & 0,085 s \\
+vm2     & 2 & 0,83 & 1,45 & 0,070 s \\
+vm3     & 2 & 0,68 & 0,94 & 0,099 s \\
+\bottomrule
+\end{tabular}
+\caption{Premier lot réel (\mesure{}) : makespan 1,316~s, 9 tâches sur 9 réussies.}
+\end{table}
+
+Depuis, l'orchestrateur a exécuté près de 40\,000 tâches sur GCP au cours des
+expériences (sections~\ref{sec:workers} et~\ref{sec:reels}), sans perte de tâche.
+
+\paragraph{Le surcoût SSH.} Grâce à la connexion réutilisée, il est de
+\textbf{0,06 à 0,12~s par tâche}, contre environ 0,5 à 1~s avec une connexion par
+tâche (ordre de grandeur de notre première version). Il augmente avec le nombre
+de tâches simultanées (jusqu'à 0,19~s avec 4 workers sur une VM à 2~vCPU) : nous
+retenons 0,1~s dans le modèle.

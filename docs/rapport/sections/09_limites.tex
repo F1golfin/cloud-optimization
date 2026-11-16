@@ -1,0 +1,64 @@
+% ============================================================================
+\section{Discussion et limites}
+\label{sec:limites}
+% ============================================================================
+
+\subsection{Ce que les mesures nous ont appris}
+
+\begin{enumerate}
+  \item \textbf{Mesurer avant d'optimiser change le problème.} Nos premières
+        hypothèses (HighCPU plus rapide, 2~vCPU = 2 tâches à pleine vitesse) étaient
+        fausses. Les corriger a divisé l'erreur du modèle par environ 3 et déplacé
+        l'optimisation vers le choix des VM.
+  \item \textbf{Le choix des VM compte plus que la répartition fine}, surtout pour
+        les petits lots, à cause de la facturation minimale de 60~s.
+  \item \textbf{Une règle intuitive ne suffit pas} : « éteindre vm1 » est vrai sur
+        500 tâches et faux sur 2000. Calculer toutes les combinaisons tranche.
+\end{enumerate}
+
+\subsection{Limites}
+
+\paragraph{Variabilité des VM à cœur partagé.} C'est la limite principale. Les
+e2-medium sont les VM les moins chères — et donc celles que préfère notre
+algorithme — mais leur vitesse peut chuter de moitié sous charge prolongée. Notre
+modèle, calibré sur des mesures courtes, ne le prévoit pas, et un planning calculé
+à l'avance ne s'y adapte pas.
+
+\paragraph{Planning statique.} Le scheduler décide tout avant l'exécution ; si une
+VM ralentit, ses tâches attendent même si d'autres VM ont fini.
+
+\paragraph{Coût modélisé, pas facture.} Notre coût compte la fenêtre active de
+chaque VM (minimum 60~s). La facture réelle inclut aussi le démarrage des VM, le
+temps entre deux commandes, l'adresse IP et le disque. Notre coût est le bon
+indicateur pour \emph{comparer} des allocations (ces frais sont identiques pour
+toutes), pas pour annoncer une économie en euros.
+
+\paragraph{Tâches très courtes.} Nos tâches durent 0,02 à 1,5~s : pour les plus
+courtes, le surcoût SSH (0,1~s) dépasse le calcul.
+
+\paragraph{Maquette réduite.} En production, on raisonnerait sur un catalogue de
+types de machines (et non 4 VM fixes), avec des VM Spot (60 à 90\,\% moins chères
+mais interruptibles) et un service comme Cloud Batch. La question resterait la
+même : combien de machines de chaque type louer, et comment répartir le travail.
+Notre raisonnement par types de VM s'y transpose directement.
+
+\paragraph{Processeur variable.} Les VM e2 peuvent être placées sur des
+générations de processeurs différentes d'un démarrage à l'autre ; nous l'avons
+observé une fois sur vm1. L'orchestrateur relève désormais le modèle de
+processeur à chaque lot.
+
+\subsection{Pistes d'amélioration}
+
+\begin{itemize}
+  \item \textbf{Mesurer la vitesse réelle des VM juste avant de planifier} (quelques
+        tâches de test), et mettre à jour le modèle.
+  \item \textbf{Rééquilibrage dynamique} (\emph{work stealing}) : une VM qui a fini
+        prend des tâches restantes d'une VM lente, au prix d'un écart au planning.
+  \item \textbf{Surveiller le \emph{steal time}} des VM pour confirmer et quantifier
+        le bridage des e2-medium.
+  \item \textbf{Recherche locale} après \sel{} (déplacements et échanges qui font
+        baisser $S$), pour affiner la répartition au-delà de Max-Min.
+  \item \textbf{Analyse de sensibilité} des poids du score (par exemple 80/20) :
+        avec un poids plus fort sur le coût, l'algorithme devrait éteindre vm1
+        même sur 2000 tâches.
+\end{itemize}

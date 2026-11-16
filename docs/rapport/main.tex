@@ -1,0 +1,108 @@
+% ============================================================================
+% Rapport technique — Cloud Optimization (ESILV A5 CCC)
+% Compilation : pdfLaTeX (Overleaf : Menu > Compiler = pdfLaTeX)
+% Toutes les figures sont dessinées en LaTeX (TikZ / pgfplots) : aucune image
+% externe. Les chiffres viennent de docs/RESULTATS.md et du dossier results/.
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,babel}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage[hidelinks]{hyperref}
+
+% --- Apparence -------------------------------------------------------------
+\definecolor{rrcol}{RGB}{140,140,140}
+\definecolor{selcol}{RGB}{31,94,140}
+\definecolor{accent}{RGB}{190,80,60}
+\captionsetup{font=small,labelfont=bf}
+\setlist{itemsep=2pt,topsep=4pt}
+\setlength{\parskip}{4pt}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,breaklines=true,
+        frame=single,framerule=0.3pt,rulecolor=\color{gray!50},
+        backgroundcolor=\color{gray!6},xleftmargin=4pt,xrightmargin=4pt,
+        literate={é}{{\'e}}1 {è}{{\`e}}1 {à}{{\`a}}1 {ê}{{\^e}}1 {ç}{{\c{c}}}1}
+\floatname{algorithm}{Algorithme}
+\renewcommand{\algorithmicrequire}{\textbf{Entrées :}}
+\renewcommand{\algorithmicensure}{\textbf{Sortie :}}
+
+% --- Raccourcis ------------------------------------------------------------
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\sel}{\texttt{select-maxmin}}
+\newcommand{\Drr}{D_{\mathrm{RR}}}
+\newcommand{\Crr}{C_{\mathrm{RR}}}
+\newcommand{\mesure}{\textsc{mesure}}
+\newcommand{\simu}{\textsc{simulation}}
+
+\begin{document}
+
+% ============================================================================
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\large ESILV — A5 Cloud Computing \& Cybersecurity\par}
+  \vspace{1.5cm}
+  {\LARGE\bfseries Cloud Optimization\par}
+  \vspace{0.4cm}
+  {\Large Ordonnancement de tâches distribuées sur Google Cloud\par}
+  \vspace{0.3cm}
+  {\large Rapport technique du projet semestriel\par}
+  \vspace{2cm}
+  {\large Prénom NOM \quad·\quad Prénom NOM \quad·\quad Prénom NOM\par}
+  \vspace{1cm}
+  {\large Novembre 2026\par}
+  \vfill
+  \begin{minipage}{0.85\textwidth}
+    \small
+    \textbf{Résumé.} Nous avons construit une petite plateforme qui exécute des
+    programmes Go compilés sur quatre machines virtuelles Google Cloud, et un
+    \emph{scheduler} qui décide sur quelle machine exécuter chaque tâche. Des
+    mesures réelles ont montré que les quatre VM ont la même vitesse pour une
+    tâche seule, qu'une VM à 2~vCPU ne vaut qu'environ 1,35~cœur, et que le
+    principal levier de coût est le \emph{choix des machines à allumer}. Notre
+    algorithme, \sel{}, essaie chaque combinaison « nombre de VM par type » et
+    répartit les tâches avec Max-Min. Exécuté réellement sur GCP, il réduit le
+    coût de 71\,\% (9~tâches) et de 29\,\% (500~tâches) par rapport à Round
+    Robin, et le temps de 24\,\% sur 2000~tâches. Notre modèle de prédiction est
+    précis à environ $\pm 10\,\%$ quand les VM fonctionnent normalement ; sa
+    principale limite est la variabilité des VM à cœur partagé (e2-medium).
+  \end{minipage}
+  \vspace{1cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\input{sections/01_probleme}
+\input{sections/02_architecture}
+\input{sections/03_mesures}
+\input{sections/04_orchestration}
+\input{sections/05_formulation}
+\input{sections/06_algorithmes}
+\input{sections/07_resultats_simules}
+\input{sections/08_resultats_reels}
+\input{sections/09_limites}
+\input{sections/10_conclusion}
+
+\appendix
+\input{sections/annexe}
+
+\end{document}

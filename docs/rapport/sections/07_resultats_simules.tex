@@ -1,0 +1,133 @@
+% ============================================================================
+\section{Résultats en simulation}
+\label{sec:simu}
+% ============================================================================
+
+\begin{center}
+\fbox{\small Tous les chiffres de cette section sont des \textbf{prédictions du modèle} (\simu{}).}
+\end{center}
+
+Les lots sont générés par \code{./bin/gentasks -n N -seed 42} : chaque tâche est
+tirée uniformément parmi les 12 combinaisons mesurées ; avec la même graine, on
+obtient toujours le même fichier. Commande de comparaison :
+\code{./bin/scheduler -compare -tasks data/tasks\_N.csv}.
+
+\subsection{Comparaison de tous les algorithmes}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrrcl}
+\toprule
+\textbf{Algorithme} & \textbf{Coût (\$)} & \textbf{Makespan (s)} & $\boldsymbol{S}$ & \textbf{Admissible} & \textbf{Tâches vm1/vm2/vm3/highcpu} \\
+\midrule
+\multicolumn{6}{l}{\textit{500 tâches — limite de délai 50,6 s}} \\
+Round Robin   & 0,004272 & 40,5  & 1,000 & oui & 125 / 125 / 125 / 125 \\
+MET           & 0,003657 & 51,9  & 1,026 & \textbf{non} & 43 / 0 / 92 / 365 \\
+MCT           & 0,004272 & 32,5  & 0,921 & oui & 100 / 120 / 104 / 176 \\
+Min-Min       & 0,004272 & 32,1  & 0,917 & oui & 100 / 96 / 100 / 204 \\
+Max-Min       & 0,004272 & 31,8  & 0,914 & oui & 100 / 96 / 100 / 204 \\
+\textbf{\sel} & \textbf{0,003043} & 39,7 & \textbf{0,819} & oui & 0 / 120 / 125 / 255 \\
+\midrule
+\multicolumn{6}{l}{\textit{2000 tâches — limite de délai 220,5 s}} \\
+Round Robin   & 0,009591 & 176,4 & 1,000 & oui & 500 / 500 / 500 / 500 \\
+MET           & 0,009976 & 236,2 & 1,160 & \textbf{non} & 183 / 0 / 333 / 1484 \\
+MCT           & 0,009701 & 137,1 & 0,918 & oui & 419 / 478 / 423 / 680 \\
+Min-Min       & 0,009734 & 136,9 & 0,919 & oui & 398 / 387 / 398 / 817 \\
+Max-Min       & 0,009687 & 136,1 & 0,915 & oui & 397 / 388 / 398 / 817 \\
+\textbf{\sel} & 0,009687 & 136,1 & \textbf{0,915} & oui & 397 / 388 / 398 / 817 \\
+\bottomrule
+\end{tabular}
+\caption{Comparaison simulée (\code{results/simulation/compare\_*.csv}).}
+\label{tab:simu}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Algorithme} & \textbf{Coût (\$)} & \textbf{Makespan (s)} & $\boldsymbol{S}$ & \textbf{VM utilisées} \\
+\midrule
+Round Robin              & 0,004272 & 1,216 & 1,000 & 4 \\
+MET                      & 0,002428 & 1,326 & 0,778 & 2 \\
+MCT / Max-Min            & 0,004272 & 1,211 & 0,998 & 4 \\
+Min-Min                  & 0,004272 & 1,296 & 1,026 & 4 \\
+Allocation manuelle (TD3)& 0,002458 & 1,216 & 0,745 & 3 \\
+\textbf{\sel}            & \textbf{0,001230} & 1,266 & \textbf{0,589} & 2 \\
+\bottomrule
+\end{tabular}
+\caption{9 tâches (lot du TD3), avec l'allocation faite à la main au TD3. Limite de délai 1,52 s.}
+\label{tab:simu9}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  ybar, width=0.95\textwidth, height=6.2cm, bar width=7pt,
+  ylabel={Score $S$ (plus bas = mieux)}, ymin=0.5, ymax=1.2,
+  xtick={1,2,3}, xticklabels={9 tâches,500 tâches,2000 tâches},
+  xmin=0.5, xmax=3.5, grid=major, grid style={gray!20},
+  legend style={at={(0.5,1.02)},anchor=south,legend columns=6,font=\footnotesize},
+  extra y ticks={1}, extra y tick style={grid style={black,dashed}}]
+  \addplot[fill=rrcol] coordinates {(1,1.000) (2,1.000) (3,1.000)};
+  \addplot[fill=accent!60] coordinates {(1,0.778) (2,1.026) (3,1.160)};
+  \addplot[fill=gray!30] coordinates {(1,0.998) (2,0.921) (3,0.918)};
+  \addplot[fill=gray!55] coordinates {(1,1.026) (2,0.917) (3,0.919)};
+  \addplot[fill=gray!80] coordinates {(1,0.998) (2,0.914) (3,0.915)};
+  \addplot[fill=selcol] coordinates {(1,0.589) (2,0.819) (3,0.915)};
+  \legend{RR, MET, MCT, Min-Min, Max-Min, \sel}
+\end{axis}
+\end{tikzpicture}
+\caption{Score simulé de chaque algorithme. MET n'est pas admissible sur 500 et 2000 tâches.}
+\label{fig:simu}
+\end{figure}
+
+\paragraph{Constats.}
+\begin{enumerate}
+  \item \textbf{Les heuristiques classiques optimisent le temps, pas notre
+        objectif.} MCT, Min-Min et Max-Min réduisent le makespan d'environ 20\,\%
+        en envoyant plus de tâches sur highcpu (4 workers). Max-Min est la meilleure
+        des heuristiques classiques ($S \approx 0{,}91$).
+  \item \textbf{Mais elles allument toujours les 4 VM} : sous 60~s de lot, leur coût
+        reste celui de RR. Sur 9 tâches, l'allocation manuelle du TD3 les bat toutes,
+        simplement parce qu'elle n'utilise pas highcpu.
+  \item \textbf{MET n'est pas admissible sur les gros lots} : les VM ayant presque
+        la même vitesse, choisir la plus rapide tâche par tâche empile tout sur une
+        seule machine.
+  \item \textbf{\sel{} est le meilleur sur tous les lots} : $-41\,\%$ de score sur
+        9 tâches (2 VM), $-10\,\%$ sur 500 (sans vm1), et égal à Max-Min sur 2000
+        (les 4 VM sont utiles).
+\end{enumerate}
+
+\subsection{Pourquoi ces combinaisons ? (\code{-explain})}
+
+\begin{table}[H]
+\centering\footnotesize
+\begin{tabular}{lrrrc}
+\toprule
+\textbf{VM allumées} & \textbf{Coût (\$)} & \textbf{Makespan (s)} & $\boldsymbol{S}$ & \textbf{Admissible} \\
+\midrule
+\textbf{0 × e2-standard-2 + 2 × e2-medium + 1 × e2-highcpu-4} & \textbf{0,003043} & \textbf{39,7} & \textbf{0,819} & \textbf{oui (choisie)} \\
+1 × e2-standard-2 + 1 × e2-medium + 1 × e2-highcpu-4 & 0,003657 & 39,7 & 0,906 & oui \\
+1 × e2-standard-2 + 2 × e2-medium + 1 × e2-highcpu-4 & 0,004272 & 31,8 & 0,914 & oui \\
+0 × e2-standard-2 + 1 × e2-medium + 1 × e2-highcpu-4 & 0,002428 & 52,8 & 0,862 & non \\
+1 × e2-standard-2 + 2 × e2-medium + 0 × e2-highcpu-4 & 0,002458 & 53,8 & 0,877 & non \\
+0 × e2-standard-2 + 2 × e2-medium + 0 × e2-highcpu-4 & 0,001661 & 81,0 & 1,033 & non \\
+\multicolumn{5}{c}{\footnotesize\textit{(5 autres combinaisons, toutes non admissibles)}} \\
+\bottomrule
+\end{tabular}
+\caption{Les combinaisons évaluées par \sel{} sur 500 tâches (limite 50,6 s).}
+\label{tab:explain500}
+\end{table}
+
+Sur 500 tâches, éteindre vm1 fait gagner 29\,\% de coût pour le même temps que RR.
+Deux combinaisons non admissibles ont un meilleur score brut que la combinaison
+choisie : \textbf{sans la contrainte de délai, l'algorithme choisirait un lot trop
+lent}. La contrainte joue donc réellement son rôle.
+
+Sur 2000 tâches, la combinaison sans vm1 arrive deuxième ($S = 0{,}9235$ contre
+$0{,}9146$). Au-delà de 60~s, éteindre vm1 ne supprime pas son travail : les autres
+VM tournent plus longtemps. On économise 11\,\% de coût mais le lot dure 25\,\% de
+plus ; avec 40\,\% de poids sur le temps, garder vm1 est préférable. Notre intuition
+(« éteindre vm1 ») était fausse sur ce lot : c'est l'intérêt de calculer toutes les
+combinaisons plutôt que d'appliquer une règle fixe.

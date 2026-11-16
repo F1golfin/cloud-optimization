@@ -1,0 +1,21 @@
+% ============================================================================
+\section{Conclusion}
+% ============================================================================
+
+Nous avons construit une chaîne complète et reproductible : des workloads Go
+compilés une fois et déployés sur quatre VM Google Cloud, un orchestrateur qui
+exécute des files de tâches en parallèle et mesure chaque tâche, et un scheduler
+qui décide où exécuter chaque tâche à partir d'un modèle calibré sur nos mesures.
+
+Les mesures ont guidé l'optimisation. Elles ont montré que les VM ont la même
+vitesse par tâche, qu'une VM à 2~vCPU ne vaut qu'environ 1,35 cœur, et que le coût
+dépend avant tout des machines allumées. Notre algorithme \sel{} en tire les
+conséquences : il choisit exactement combien de VM de chaque type allumer, puis
+répartit les tâches avec Max-Min.
+
+En conditions réelles, il réduit le coût de 71\,\% et 29\,\% sur les petits lots et
+le temps de 24\,\% sur le gros lot, par rapport à Round Robin. Le modèle prédit les
+temps à environ $\pm 10\,\%$ quand les VM fonctionnent normalement. La principale
+limite est la variabilité des VM à cœur partagé, qui peut ralentir une machine de
+moitié : c'est elle qu'il faudrait traiter en priorité, par un rééquilibrage
+dynamique ou une mesure des VM juste avant de planifier.

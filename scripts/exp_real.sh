@@ -14,7 +14,12 @@
 #         LOTS="data/tasks.csv" REPS=1 ./scripts/exp_real.sh
 #         ORCH_FLAGS=-local REPS=1 ./scripts/exp_real.sh   (test sans GCP)
 #
-# Sorties : results/exp_real/<lot>/  allocations, prédictions, une exécution par
+# Tous les algorithmes + l'allocation manuelle du TD3 (« manual », valable
+# uniquement pour le lot data/tasks.csv), dans un autre dossier :
+#         OUT=results/exp_real_all ALGOS="rr met mct minmin maxmin select-maxmin manual" \
+#             LOTS="data/tasks.csv" ./scripts/exp_real.sh
+#
+# Sorties : $OUT/<lot>/  allocations, prédictions, une exécution par
 #           fichier (<algo>_r<k>.csv + _vms.csv), runs.csv et summary.csv
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -22,7 +27,8 @@ cd "$(dirname "$0")/.."
 LOTS="${LOTS:-data/tasks.csv data/tasks_500.csv}"
 ALGOS="${ALGOS:-rr select-maxmin}"
 REPS="${REPS:-3}"
-OUT="results/exp_real"
+OUT="${OUT:-results/exp_real}"
+MANUAL="${MANUAL:-data/allocation_manual.csv}"   # allocation faite à la main (TD3)
 
 [[ -x bin/scheduler && -x bin/orchestrator ]] || make tools
 # Rappel affiché quoi qu'il arrive, même si une exécution échoue en cours de route.
@@ -35,11 +41,21 @@ for lot in $LOTS; do
     echo "################ Lot $lot ################"
 
     # 1. Allocations + prédictions du modèle (aucune VM n'est contactée ici).
+    eval_flags=()
     for algo in $ALGOS; do
+        if [[ "$algo" == manual ]]; then
+            # Allocation manuelle : pas calculée, recopiée telle quelle. Le fichier
+            # manual.csv est aussi évalué par le modèle (ligne « manual » des prédictions).
+            cp "$MANUAL" "$dir/alloc_manual.csv"
+            cp "$MANUAL" "$dir/manual.csv"
+            eval_flags=(-eval "$dir/manual.csv")
+            echo "  manual : allocation $MANUAL"
+            continue
+        fi
         ./bin/scheduler -algo "$algo" -tasks "$lot" -out "$dir/alloc_$algo.csv" > "$dir/scheduler_$algo.txt"
         grep "VM à démarrer" "$dir/scheduler_$algo.txt" | sed "s/^/  $algo : /"
     done
-    ./bin/scheduler -compare -tasks "$lot" -csv "$dir/predicted.csv" > /dev/null
+    ./bin/scheduler -compare -tasks "$lot" -csv "$dir/predicted.csv" ${eval_flags[@]+"${eval_flags[@]}"} > /dev/null
 
     # 2. Exécutions réelles, algorithmes alternés.
     for r in $(seq 1 "$REPS"); do
