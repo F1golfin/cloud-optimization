@@ -40,8 +40,8 @@ tasks.csv + machines.csv + vm_performance.csv (mesures réelles)
 workloads/<nom>/main.go   les 4 workloads de référence (un dossier par programme)
 orchestrator/             l'orchestrateur (exécution sur les VM via SSH)
 scheduler/model/          modèle commun : prédiction, simulation, coût, score S
-scheduler/algorithms/     RR, MET, MCT, Min-Min, Max-Min
-scheduler/cmd/            programmes scheduler et gentasks
+scheduler/algorithms/     RR, MET, MCT, Min-Min, Max-Min, select-maxmin, optimal
+scheduler/cmd/            programmes scheduler, gentasks et gantt
 scripts/                  scripts gcloud (création/arrêt des VM, déploiement)
 data/                     entrées : tâches, machines, allocations, mesures
 results/                  sorties : benchmarks, résultats d'exécution
@@ -144,7 +144,7 @@ Le code retour est non nul si une tâche échoue ; les autres tâches continuent
 ./bin/scheduler -explain -tasks data/tasks_500.csv   # justification : les 11 combinaisons de types de VM
 ./bin/scheduler -compare -tasks data/tasks_500.csv   # tous les algorithmes, même modèle
 ./bin/scheduler -compare -tasks data/tasks_500.csv -exclude cloudopt-highcpu
-./bin/scheduler -compare -tasks data/tasks.csv -eval data/allocation_manual.csv
+./bin/scheduler -compare -tasks data/tasks.csv -eval data/allocation_manual.csv   # + « optimal » (≤ 10 tâches)
 ```
 
 Algorithmes : `rr` (référence), `met`, `mct`, `minmin`, `maxmin` et
@@ -152,6 +152,10 @@ Algorithmes : `rr` (référence), `met`, `mct`, `minmin`, `maxmin` et
 VM de chaque type » (11 pour notre parc), répartit avec Max-Min et garde le
 meilleur score S qui respecte le délai. En mode `-algo`, il affiche aussi les VM
 à démarrer : les autres restent éteintes.
+`optimal` : meilleure allocation possible selon le modèle, par recherche
+exhaustive (toutes les affectations et le meilleur ordre sur chaque VM) ; lots de
+10 tâches au plus, ajouté automatiquement au mode compare. Sert à mesurer l'écart
+de select-maxmin à l'optimum.
 Options du mode compare : `-csv <fichier>` (tableau), `-save-dir <dossier>`
 (allocation de chaque algorithme, directement exécutable par l'orchestrateur).
 
@@ -183,6 +187,14 @@ Pour chaque lot : allocations et prédictions du scheduler, exécutions réelles
 alternées, puis `results/exp_real/<lot>/summary.csv` (makespan et coût mesurés,
 moyenne ± écart-type, S mesuré, erreur réel/prédit). Résultats et analyse :
 [docs/RESULTATS.md § 9](docs/RESULTATS.md).
+
+Diagramme temporel (Gantt) d'exécutions **réelles**, au format TikZ pour le rapport :
+
+```bash
+./bin/gantt -titles "Round Robin,select-maxmin" \
+    results/exp_real_all/tasks/rr_r1.csv results/exp_real_all/tasks/select-maxmin_r1.csv \
+    > docs/rapport/figures/gantt_9.tex
+```
 
 ## Responsabilité cloud
 

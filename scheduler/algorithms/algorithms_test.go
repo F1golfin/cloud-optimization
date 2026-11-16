@@ -143,3 +143,104 @@ func TestMinMinVersusMaxMin(t *testing.T) {
 		t.Fatalf("Max-Min : D = %v, attendu 5", d)
 	}
 }
+
+// permutations : toutes les permutations de xs (petits ensembles uniquement).
+func permutations(xs []int) [][]int {
+	if len(xs) <= 1 {
+		return [][]int{append([]int(nil), xs...)}
+	}
+	var out [][]int
+	for k := range xs {
+		rest := append(append([]int(nil), xs[:k]...), xs[k+1:]...)
+		for _, p := range permutations(rest) {
+			out = append(out, append([]int{xs[k]}, p...))
+		}
+	}
+	return out
+}
+
+// Optimal doit trouver le même S que la force brute la plus naïve : toutes les
+// affectations ET tous les ordres possibles sur chaque VM.
+func TestOptimalMatchesNaiveBruteForce(t *testing.T) {
+	rng := rand.New(rand.NewSource(7))
+	for trial := 0; trial < 20; trial++ {
+		n := 5
+		p := make([][]float64, n)
+		for i := range p {
+			p[i] = []float64{0.2 + rng.Float64()*2, 0.2 + rng.Float64()*2, 0.2 + rng.Float64()*2}
+		}
+		in := toy(p, 3)
+		in.Machines[1].VCPU, in.Machines[2].VCPU = 2, 3
+		in.Machines[1].PricePerHour, in.Machines[2].PricePerHour = 0.07, 0.11
+		in.Params.MinBilledS = 1 // pour que la durée compte dans le coût
+		ref := in.Evaluate(RoundRobin(in))
+
+		best := math.Inf(1)
+		assign := make([]int, n)
+		for {
+			// tous les ordres : une permutation globale suffit (l'ordre relatif
+			// sur chaque VM est celui de la permutation)
+			for _, perm := range permutations([]int{0, 1, 2, 3, 4}) {
+				var a model.Allocation
+				for _, i := range perm {
+					a = append(a, model.Assignment{Task: i, VM: assign[i]})
+				}
+				met := in.Evaluate(a)
+				if in.Feasible(met, ref) {
+					best = math.Min(best, in.Score(met, ref))
+				}
+			}
+			k := 0
+			for k < n {
+				assign[k]++
+				if assign[k] < 3 {
+					break
+				}
+				assign[k] = 0
+				k++
+			}
+			if k == n {
+				break
+			}
+		}
+
+		a := Optimal(in)
+		if err := in.Validate(a); err != nil {
+			t.Fatal(err)
+		}
+		got := in.Score(in.Evaluate(a), ref)
+		if !near(got, best) {
+			t.Fatalf("essai %d : Optimal S = %.9f, force brute S = %.9f", trial, got, best)
+		}
+	}
+}
+
+// Aucun algorithme ne doit battre l'optimum (même modèle, même critère).
+func TestOptimalNeverWorse(t *testing.T) {
+	rng := rand.New(rand.NewSource(3))
+	p := make([][]float64, 8)
+	for i := range p {
+		p[i] = []float64{0.1 + rng.Float64(), 0.1 + rng.Float64(), 0.1 + rng.Float64(), 0.1 + rng.Float64()}
+	}
+	in := toy(p, 4)
+	in.Machines[1].VCPU, in.Machines[3].VCPU = 2, 4
+	in.Params.MinBilledS = 0.5
+	ref := in.Evaluate(RoundRobin(in))
+	opt := in.Score(in.Evaluate(Optimal(in)), ref)
+	for _, a := range All {
+		met := in.Evaluate(a.Run(in))
+		if in.Feasible(met, ref) && in.Score(met, ref) < opt-1e-9 {
+			t.Errorf("%s (S = %.6f) bat l'optimum (S = %.6f)", a.Name, in.Score(met, ref), opt)
+		}
+	}
+}
+
+func TestOptimalRefusesLargeLots(t *testing.T) {
+	p := make([][]float64, OptimalMaxTasks+1)
+	for i := range p {
+		p[i] = []float64{1, 1}
+	}
+	if Optimal(toy(p, 2)) != nil {
+		t.Fatal("Optimal doit refuser un lot de plus de OptimalMaxTasks tâches")
+	}
+}

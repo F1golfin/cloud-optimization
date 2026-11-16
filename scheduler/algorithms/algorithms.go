@@ -15,6 +15,10 @@
 //
 //	select-maxmin  essaie chaque combinaison « nombre de VM par type »,
 //	               répartit avec Max-Min, garde le meilleur S admissible (select.go)
+//
+// et un point de comparaison, hors de la liste All (petits lots uniquement) :
+//
+//	optimal        recherche exhaustive de la meilleure allocation (optimal.go)
 package algorithms
 
 import "cloud-optimization/scheduler/model"
@@ -35,8 +39,13 @@ var All = []Algo{
 	{"select-maxmin", "Choix du nombre de VM par type + Max-Min (notre algorithme)", SelectMaxMin},
 }
 
+// Extra : algorithmes qu'on ne lance pas sur tous les lots (trop coûteux).
+var Extra = []Algo{
+	{"optimal", "Optimum exact par recherche exhaustive (lots de 10 tâches au plus)", Optimal},
+}
+
 func Get(name string) (Algo, bool) {
-	for _, a := range All {
+	for _, a := range append(All[:len(All):len(All)], Extra...) {
 		if a.Name == name {
 			return a, true
 		}

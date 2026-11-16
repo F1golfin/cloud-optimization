@@ -14,6 +14,9 @@
 //
 //	./bin/scheduler -explain -tasks data/tasks_500.csv
 //
+// Sur un petit lot (10 tâches au plus), -compare ajoute « optimal » : la
+// meilleure allocation possible selon le modèle (recherche exhaustive).
+//
 // Les durées, coûts et scores affichés sont des PRÉDICTIONS du modèle
 // (package model), pas des mesures : seule l'exécution par l'orchestrateur mesure.
 package main
@@ -33,7 +36,7 @@ import (
 )
 
 func main() {
-	algo := flag.String("algo", "rr", "algorithme : rr, met, mct, minmin, maxmin, select-maxmin")
+	algo := flag.String("algo", "rr", "algorithme : rr, met, mct, minmin, maxmin, select-maxmin, optimal (10 tâches max)")
 	explain := flag.Bool("explain", false, "affiche le résultat de Max-Min pour chaque combinaison « nombre de VM par type »")
 	tasks := flag.String("tasks", "", "lot de tâches (task_id,workload,size) [obligatoire]")
 	machines := flag.String("machines", "data/machines.csv", "description des VM")
@@ -101,6 +104,9 @@ func main() {
 			check(fmt.Errorf("algorithme inconnu %q", *algo))
 		}
 		alloc := a.Run(in)
+		if alloc == nil {
+			check(fmt.Errorf("%s : lot trop grand (%d tâches, %d au plus)", a.Name, len(in.Tasks), algorithms.OptimalMaxTasks))
+		}
 		check(in.Validate(alloc))
 		check(os.MkdirAll(filepath.Dir(*out), 0o755))
 		check(in.WriteAllocation(*out, alloc))
@@ -127,7 +133,11 @@ func main() {
 		elapsed time.Duration
 	}
 	var rows []row
-	for _, a := range algorithms.All {
+	algos := algorithms.All
+	if len(in.Tasks) <= algorithms.OptimalMaxTasks {
+		algos = append(algos[:len(algos):len(algos)], algorithms.Extra...)
+	}
+	for _, a := range algos {
 		start := time.Now()
 		alloc := a.Run(in)
 		elapsed := time.Since(start)

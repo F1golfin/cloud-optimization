@@ -643,6 +643,29 @@ comparés entre eux dans les mêmes conditions.
    bridée compense. Piste : benchmark par plateforme, ou mesure des VM juste avant
    de planifier.
 
+### Écart à l'optimum (SIMULATION, 9 tâches)
+
+`./bin/scheduler -compare -tasks data/tasks.csv` inclut maintenant `optimal`
+(`scheduler/algorithms/optimal.go`) : recherche exhaustive des 4⁹ = 262 144
+affectations, avec le meilleur ordre d'exécution sur chaque VM (78 ms).
+Testé contre une force brute naïve (affectations × permutations).
+
+| Algo | Coût ($) | Makespan (s) | S prédit | VM |
+|---|---|---|---|---|
+| optimal | 0,001230 | 1,257 | **0,5865** | vm2:6 vm3:3 |
+| select-maxmin | 0,001230 | 1,266 | 0,5893 | vm2:5 vm3:4 |
+| allocation manuelle | 0,002458 | 1,216 | 0,7453 | vm1:3 vm2:3 vm3:3 |
+
+select-maxmin choisit **les mêmes VM** que l'optimum ; il n'est qu'à **0,5 %**
+de S (9 ms de makespan), écart bien inférieur au bruit de mesure (± 50 ms).
+Inutile de l'exécuter sur GCP : la différence ne serait pas mesurable.
+
+### Diagramme temporel (MESURE)
+
+`./bin/gantt` trace les exécutions réelles (début / fin de chaque tâche relevés
+par l'orchestrateur) : `docs/rapport/figures/gantt_9.tex` (RR r1 et
+select-maxmin r1 sur 9 tâches, `results/exp_real_all/tasks/`).
+
 ### Sensibilité aux poids (SIMULATION, `-explain -wcost 0.8`, 2000 tâches)
 
 | Poids coût / temps | Combinaison choisie | Coût ($) | Makespan (s) |
