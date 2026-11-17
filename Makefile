@@ -40,6 +40,8 @@ tools:
 	@go build $(GOFLAGS_BUILD) -o bin/gentasks ./scheduler/cmd/gentasks
 	@echo "build bin/gantt"
 	@go build $(GOFLAGS_BUILD) -o bin/gantt ./scheduler/cmd/gantt
+	@echo "build bin/modelcheck"
+	@go build $(GOFLAGS_BUILD) -o bin/modelcheck ./scheduler/cmd/modelcheck
 
 linux:
 	@mkdir -p $(LINUX_DIR)

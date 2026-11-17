@@ -177,6 +177,26 @@ Options du mode compare : `-csv <fichier>` (tableau), `-save-dir <dossier>`
 - Les sorties du scheduler sont des **prédictions** ; seules celles de
   l'orchestrateur sont des **mesures**.
 
+### Modèle V2 : prédire des VM jamais mesurées (option `-ref`)
+
+Par défaut (V1), chaque VM a son propre benchmark. Avec `-ref <vm>`, seule cette
+VM de référence est mesurée ; les autres sont prédites à partir de leur fiche
+dans `data/machines.csv` :
+
+- durée = médiane de la référence ÷ `speed` × contention de la référence + 0,1 s ;
+- `speed` (colonne optionnelle, 1 par défaut) = vitesse par tâche relative à la
+  référence : 1 pour toute la famille e2 (mesuré : ±5 %), sinon le rapport des
+  scores de benchmark publiés par Google pour chaque type de machine ;
+- workers = `vcpu`, mémoire = `ram_mb`, coût = `price_per_hour`, comme en V1.
+
+```bash
+./bin/scheduler -algo select-maxmin -tasks data/tasks_500.csv -ref cloudopt-vm2
+./bin/modelcheck -ref cloudopt-vm2 results/exp_real/*/ results/exp_real_all/*/ > v2.csv
+```
+
+`modelcheck` compare, VM par VM, la fin prédite à la fin mesurée dans toutes
+les exécutions réelles passées (validation : `docs/RESULTATS.md` § 9 quater).
+
 ## Expérience réelle : RR contre select-maxmin
 
 ```bash

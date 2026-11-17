@@ -675,6 +675,54 @@ select-maxmin r1 sur 9 tâches, `results/exp_real_all/tasks/`).
 
 ---
 
+## 9 quater. Modèle V2 « par caractéristiques » (VALIDATION SUR MESURES RÉELLES)
+
+**Critique reçue à l'oral (17/11/2026)** : le modèle est calibré sur les VM
+mêmes qui servent aux tests (risque de surapprentissage) ; il ne sait pas
+prédire une VM ou un groupe de VM jamais mesuré.
+
+**Modèle V2** (`-ref cloudopt-vm2`) : seule vm2 est mesurée (benchmark +
+contention). vm1, vm3 et highcpu sont prédites **uniquement à partir de leur
+fiche** (`machines.csv` : vCPU = workers, RAM, prix, `speed` = 1 pour la famille
+e2). Pour V2, les trois autres VM sont donc **hors échantillon**.
+
+**Validation** (`./bin/modelcheck`, sans nouvelle exécution GCP) : fin prédite /
+fin mesurée de chaque VM, sur les 315 (exécution, VM) des dossiers
+`results/exp_real/` et `results/exp_real_all/`.
+
+| Sous-ensemble | n | V1 : médiane mesuré/prédit, erreur moyenne | V2 : médiane, erreur moyenne |
+|---|---|---|---|
+| Lots 500/2000, VM non bridées, Intel | 131 | 1,04 · 12,4 % | 0,98 · **11,4 %** |
+| — e2-medium | 56 | 0,98 · 15,4 % | 0,97 · 14,8 % |
+| — e2-standard-2 (vm1, hors échantillon en V2) | 33 | 1,09 · 14,5 % | 1,06 · 13,5 % |
+| — e2-highcpu-4 (hors échantillon en V2) | 42 | 1,04 · 6,7 % | 0,98 · 5,3 % |
+| Lots de 9 tâches | 90 | 0,91 · 14,3 % | 0,87 · 16,6 % |
+| Session AMD (2000), VM non bridées | 55 | 0,67 · 33 % | 0,65 · 35 % |
+| VM bridées (pour info) | 39 | 1,78 · 61 % | 1,72 · 57 % |
+| Makespan par exécution (Intel, sans VM bridée) | 17 | 1,21 · 29,9 % | 1,14 · 26,1 % |
+
+**Décisions de select-maxmin** : identiques en V1 et en V2 (mêmes VM choisies,
+répartitions à quelques tâches près) sur les lots de 9, 200, 500 et 2000 tâches.
+
+**Constats.**
+1. **Prédire une VM jamais mesurée à partir de sa fiche est aussi précis que de
+   la mesurer** : les VM hors échantillon (vm1, highcpu) sont même un peu mieux
+   prédites en V2. Le modèle ne colle donc pas aux particularités des VM
+   mesurées ; ce qui compte, c'est le type (vCPU, famille).
+2. Ce résultat repose sur un fait mesuré : **dans la famille e2, la vitesse par
+   tâche ne dépend pas du type** (±5 %). Pour une autre famille (n2, c3, ARM…),
+   le facteur `speed` doit venir des scores publiés par Google ou d'un
+   mini-benchmark : **non testé ici**.
+3. Les erreurs résiduelles ne viennent pas du choix V1/V2 mais des VM elles-mêmes
+   (bridage des e2-medium, processeur AMD choisi par Google) : elles sont les
+   mêmes dans les deux modèles.
+
+**Limite du test** : pas de nouvelle exécution sur un groupe de VM recréé ; la
+validation réutilise les exécutions passées (mais avec un modèle qui n'a vu
+qu'une seule des quatre VM).
+
+---
+
 ## 10. Décisions prises
 
 | Décision | Raison |
