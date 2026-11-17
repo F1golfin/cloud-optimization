@@ -188,6 +188,15 @@ alternées, puis `results/exp_real/<lot>/summary.csv` (makespan et coût mesuré
 moyenne ± écart-type, S mesuré, erreur réel/prédit). Résultats et analyse :
 [docs/RESULTATS.md § 9](docs/RESULTATS.md).
 
+Précision du modèle, exécution par exécution (makespan prédit contre mesuré,
+et repérage des e2-medium bridées) :
+
+```bash
+./scripts/precision.sh results/exp_real/*/            # select-maxmin par défaut
+ALGO=rr ./scripts/precision.sh results/exp_real/*/
+LATEX=1 ./scripts/precision.sh results/exp_real/*/    # lignes de tableau pour le rapport
+```
+
 Diagramme temporel (Gantt) d'exécutions **réelles**, au format TikZ pour le rapport :
 
 ```bash

@@ -94,9 +94,11 @@ Allocation manuelle (TD3)& 0,002458 & 1,216 & 0,745 & 3 \\
   \item \textbf{MET n'est pas admissible sur les gros lots} : les VM ayant presque
         la même vitesse, choisir la plus rapide tâche par tâche empile tout sur une
         seule machine.
-  \item \textbf{\sel{} est le meilleur sur tous les lots} : $-41\,\%$ de score sur
-        9 tâches (2 VM), $-10\,\%$ sur 500 (sans vm1), et égal à Max-Min sur 2000
-        (les 4 VM sont utiles).
+  \item \textbf{\sel{} est le meilleur sur tous les lots.} Par rapport à RR, son
+        score baisse de $41\,\%$ sur 9 tâches (2 VM), de $18\,\%$ sur 500 (sans
+        vm1) et de $8{,}5\,\%$ sur 2000. Par rapport à Max-Min, la meilleure heuristique
+        classique, il gagne $41\,\%$ sur 9 tâches et $10\,\%$ sur 500, et il est
+        égal sur 2000 (les 4 VM sont utiles, l'allocation est la même).
 \end{enumerate}
 
 \subsection{Pourquoi ces combinaisons ? (\code{-explain})}

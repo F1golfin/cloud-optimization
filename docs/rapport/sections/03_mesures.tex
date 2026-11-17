@@ -12,7 +12,7 @@ machine. Toutes les valeurs de cette section sont des \mesure{}s.
 \centering\small
 \begin{tabular}{llll}
 \toprule
-\textbf{Workload} & \textbf{Profil} & \textbf{Signification de \code{-{}-size}} & \textbf{Tailles mesurées} \\
+\textbf{Workload} & \textbf{Profil} & \textbf{Signification de \code{-{}-size}} & \textbf{Tailles utilisées} \\
 \midrule
 \code{cpu\_task}    & CPU          & plus grand entier testé (nombres premiers) & 200\,000 ; 500\,000 ; 1\,000\,000 \\
 \code{memory\_task} & mémoire      & mémoire allouée et parcourue (Mo)          & 128 ; 256 ; 512 \\
@@ -23,10 +23,8 @@ machine. Toutes les valeurs de cette section sont des \mesure{}s.
 \caption{Les quatre workloads de référence et leurs trois tailles (celles de l'énoncé).}
 \end{table}
 
-Chaque programme affiche une ligne JSON contenant son propre temps de calcul
-(\code{runtime\_s}), ce qui permet plus tard de séparer le calcul du surcoût
-d'orchestration. Les tailles mesurées sont exactement celles utilisées dans les
-lots de tâches : le scheduler lit directement une durée mesurée, sans extrapoler.
+Chaque programme renvoie son propre temps de calcul (\code{runtime\_s}, en JSON). Les lots n'utilisent que ces 12 combinaisons,
+toutes mesurées sur chaque VM : le scheduler lit une durée mesurée.
 
 \subsection{Infrastructure}
 
@@ -48,11 +46,9 @@ cloudopt-highcpu & e2-highcpu-4  & 4            & 4 Go & 0,1088 \\
 
 \subsection{Benchmark : une tâche seule}
 
-Protocole (\code{scripts/benchmark.sh}, identique en local et sur chaque VM) :
-4 workloads $\times$ 3 tailles $\times$ 5 répétitions, une exécution de chauffe
-non mesurée avant chaque taille. Nous retenons la \textbf{médiane}, plus robuste
-qu'une moyenne à une exécution perturbée. L'écart-type est inférieur à 1\,\%
-dans presque tous les cas.
+Protocole (\code{scripts/benchmark.sh}) : pour chaque workload et chaque taille,
+5 exécutions mesurées. Nous retenons la \textbf{médiane}
+(écart-type < 3\%).
 
 \begin{table}[H]
 \centering\small
@@ -81,14 +77,13 @@ sort\_task   & 1\,M       & 0,055 & 0,137 & 0,140 & 0,138 & 0,138 \\
 \paragraph{Constats.}
 \begin{enumerate}
   \item \textbf{Les quatre VM ont la même vitesse pour une tâche seule}, à 5\,\%
-        près. Un workload n'utilise qu'un cœur, et toutes les VM e2 tournent sur la
-        même famille de processeurs. HighCPU n'a pas des cœurs plus rapides : elle
-        en a plus. Cela contredit notre première version, où HighCPU semblait
-        dominer les autres VM tâche par tâche.
+        près. Chaque workload n'utilise qu'un cœur, et toutes les VM e2 reposent
+        sur la même famille de processeurs. HighCPU n'a donc pas des cœurs plus
+        rapides, mais davantage de cœurs : son avantage n'apparaît que lorsque
+        plusieurs tâches tournent en même temps (section~\ref{sec:workers}).
   \item La machine locale est 2,5 à 20 fois plus rapide : elle sert à caractériser
         les workloads, pas à prédire les durées sur GCP.
-  \item Sur les VM, une tâche dure de 0,02 à 1,5~s : le surcoût d'orchestration
-        n'est pas négligeable.
+  \item Sur les VM, une tâche dure de 0,02 à 1,5~s.
 \end{enumerate}
 
 \subsection{Parallélisme réel : l'expérience « workers »}
@@ -98,7 +93,8 @@ Le benchmark mesure une tâche \emph{seule}. Or l'orchestrateur lance plusieurs
 tâches en même temps sur une VM. Nous avons donc mesuré le parallélisme réel
 (\code{scripts/exp\_workers.sh}) : le même lot de 24 tâches (2 $\times$ les 12
 combinaisons) sur chaque VM, avec 1, 2 puis 4 tâches simultanées
-(\emph{workers}), 3 répétitions par niveau.
+(\emph{workers}), 3 répétitions par niveau. Chaque lot ne dure que 4 à 12~s :
+ce sont des mesures en \textbf{charge courte}.
 
 \begin{figure}[H]
 \centering
@@ -107,8 +103,8 @@ combinaisons) sur chaque VM, avec 1, 2 puis 4 tâches simultanées
   width=0.62\textwidth, height=6cm,
   xlabel={Workers (tâches simultanées par VM)}, ylabel={Débit (tâches/s)},
   xtick={1,2,4}, ymin=0, ymax=6, grid=major, grid style={gray!20},
-  legend style={font=\small, at={(0.5,-0.2)}, anchor=north, legend columns=2,
-                /tikz/every even column/.append style={column sep=0.6cm}}]
+    legend style={font=\small, at={(0.5,-0.3)}, anchor=north, legend columns=2,
+    /tikz/every even column/.append style={column sep=0.6cm}}]
   \addplot[mark=*, thick, selcol] coordinates {(1,2.22) (2,3.98) (4,5.32)};
   \addlegendentry{highcpu (4 vCPU)}
   \addplot[mark=square*, thick, accent] coordinates {(1,1.96) (2,2.66) (4,2.72)};
@@ -127,28 +123,45 @@ combinaisons) sur chaque VM, avec 1, 2 puis 4 tâches simultanées
 \begin{enumerate}
   \item \textbf{Une VM à 2~vCPU ne vaut qu'environ 1,35 cœur} : passer de 1 à 2
         workers n'augmente le débit que de 35\,\%, car chaque tâche ralentit
-        d'environ $\times 1{,}4$. Avec 4 workers, plus aucun gain. Sur GCP, un vCPU
-        est un \emph{hyperthread} : 2~vCPU correspondent à un seul cœur physique.
-  \item \textbf{HighCPU (4 vCPU, soit 2 cœurs) passe bien à l'échelle} :
+        d'environ $\times 1{,}4$. Avec 4 workers, plus aucun gain. Sur GCP,
+        2~vCPU correspondent à un seul cœur physique partagé en deux
+        (\emph{hyperthreads}) : deux tâches simultanées se partagent donc ce cœur.
+  \item \textbf{HighCPU (4 vCPU, soit 2 cœurs)} :
         $\times 1{,}8$ avec 2 workers, $\times 2{,}4$ avec 4.
   \item Nous retenons \textbf{workers = nombre de vCPU} (2, ou 4 pour highcpu) :
         c'est le débit maximal ou quasi maximal partout.
 \end{enumerate}
 
+\subsection{Rapport débit / prix}
+
+Le débit de l'expérience workers a été mesuré en charge courte. Pour vérifier
+qu'il tient sur une charge longue, nous l'avons recalculé sur une exécution réelle
+de 2000 tâches (\sel{}, session~1, r1 ; section~\ref{sec:reels}), où chaque VM
+travaille pendant 130 à 260~s sur un mélange de tâches comparable.
+
 \begin{table}[H]
 \centering\small
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrr}
 \toprule
-\textbf{VM} & \textbf{Débit (tâches/s)} & \textbf{Prix (\$/h)} & \textbf{Débit par \$/h} \\
+ & \multicolumn{2}{c}{\textbf{Charge courte (workers)}} & & \textbf{Charge longue} \\
+\cmidrule(lr){2-3}\cmidrule(lr){5-5}
+\textbf{VM} & \textbf{Débit (t/s)} & \textbf{Débit par \$/h} & \textbf{Prix (\$/h)} & \textbf{Débit par \$/h} \\
 \midrule
-vm2 / vm3 (e2-medium)     & 2,97 / 2,99 & 0,0369 & \textbf{$\approx$ 81} \\
-highcpu (e2-highcpu-4)    & 5,32        & 0,1088 & 49 \\
-vm1 (e2-standard-2)       & 2,66        & 0,0737 & 36 \\
+e2-medium non bridée (vm2) & 2,97 & \textbf{$\approx$ 81} & 0,0369 & 81 \\
+e2-medium bridée (vm3)     & —    & —                     & 0,0369 & 42 \\
+highcpu (e2-highcpu-4)     & 5,32 & 49                    & 0,1088 & 53 \\
+vm1 (e2-standard-2)        & 2,66 & 36                    & 0,0737 & 35 \\
 \bottomrule
 \end{tabular}
-\caption{Rapport débit/prix au nombre de workers retenu. Les e2-medium sont les plus économiques, highcpu la plus rapide, vm1 est dominée.}
+\caption{Rapport débit/prix au nombre de workers retenu. Charge courte :
+expérience workers (4 à 12~s). Charge longue : exécution de 2000 tâches,
+mesurée sur chaque VM.}
 \label{tab:debitprix}
 \end{table}
 
-Ce tableau résume le compromis que doit arbitrer le scheduler : \textbf{vm2/vm3
-pour économiser, highcpu pour aller vite, vm1 seulement si la capacité manque}.
+Ce tableau résume le compromis que doit arbitrer le scheduler : \textbf{les
+e2-medium pour économiser, highcpu pour aller vite, vm1 seulement si la capacité
+manque}. Il montre aussi une fragilité : les e2-medium ne gardent leur avantage
+que tant qu'elles ne sont pas bridées (section~\ref{sec:vm3}). En charge longue,
+une e2-medium bridée tombe à 42, sous highcpu (53) mais toujours au-dessus de
+vm1 (35).

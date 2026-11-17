@@ -62,7 +62,7 @@ type Instance struct {
 type Assignment struct{ Task, VM int }
 type Allocation []Assignment
 
-// ------------------------------------------------------------ chargement
+// chargement
 
 // Load lit tasks.csv, machines.csv et vm_performance.csv. Les VM dont le nom
 // est dans exclude sont retirées (scénario « VM indisponible »).
@@ -174,7 +174,7 @@ func (in *Instance) LoadAllocation(path string) (Allocation, error) {
 	return a, in.Validate(a)
 }
 
-// ------------------------------------------------------------ simulation
+// simulation
 
 // Lanes : l'heure de fin prévue de chaque worker d'une VM. Une tâche est
 // confiée au worker qui se libère le premier, exactement comme dans
@@ -214,7 +214,7 @@ func (l Lanes) End() float64 {
 	return end
 }
 
-// ------------------------------------------------------------ évaluation
+// évaluation
 
 type VMStat struct {
 	Tasks    int
@@ -298,7 +298,7 @@ func (in *Instance) Feasible(m, ref Metrics) bool {
 	return m.RAMOK && m.Makespan <= in.Params.DeadlineFactor*ref.Makespan+1e-9
 }
 
-// ------------------------------------------------------------ sortie
+// sortie
 
 // WriteAllocation écrit l'allocation au format lu par l'orchestrateur.
 func (in *Instance) WriteAllocation(path string, a Allocation) error {
@@ -317,7 +317,7 @@ func (in *Instance) WriteAllocation(path string, a Allocation) error {
 	return w.Error()
 }
 
-// ------------------------------------------------------------ CSV
+// CSV
 
 func readCSV(path string, want ...string) ([]map[string]string, error) {
 	f, err := os.Open(path)

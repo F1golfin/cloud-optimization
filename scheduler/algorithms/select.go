@@ -10,14 +10,6 @@ import (
 
 // SelectMaxMin — notre algorithme : « choix des VM par type + Max-Min ».
 //
-// Constat de départ (simulations, docs/RESULTATS.md § 7) : les heuristiques
-// classiques répartissent bien les tâches mais allument TOUJOURS toutes les
-// VM. Or une VM allumée coûte au moins 60 s : le principal levier de coût est
-// le CHOIX DES VM à allumer, pas la répartition fine.
-//
-// Idée clé : deux VM du même type (ici vm2 et vm3, deux e2-medium) sont
-// interchangeables. On ne raisonne donc pas « quelles VM allumer » mais
-// « COMBIEN de VM de chaque TYPE allumer ».
 //
 // Méthode, en deux niveaux :
 //  1. Choix du nombre de VM par type — EXACT : on essaie toutes les

@@ -27,9 +27,17 @@ section~\ref{sec:mesures} :
   + \underbrace{\omega}_{\text{surcoût SSH}}
   \label{eq:pij}
 \end{equation}
-avec $\gamma_j = 1{,}40$ pour les VM à 2~vCPU et $1{,}32$ pour highcpu
-(ralentissement mesuré quand tous les workers tournent, section~\ref{sec:workers})
-et $\omega = 0{,}1$~s.
+avec $\omega = 0{,}1$~s, $\gamma_j = 1{,}40$ pour les VM à 2~vCPU et $1{,}32$ pour
+highcpu.
+
+$\gamma_j$ est mesuré directement dans l'expérience workers
+(section~\ref{sec:workers}) : c'est le temps de calcul de chaque tâche, relevé par
+le workload lui-même quand tous les workers tournent, divisé par sa médiane de
+benchmark (moyenne sur 24 tâches). Il ne se déduit pas du gain de débit
+($4/2{,}40 \approx 1{,}67$ pour highcpu), qui inclut aussi le surcoût SSH (non
+ralenti par la contention) et les workers inactifs en fin de lot. La valeur est
+confirmée en réel : highcpu finit à $+2$ à $+5\,\%$ de sa prédiction dans toutes
+nos exécutions (tableau~\ref{tab:precision}).
 
 \subsection{Simulation, makespan et coût}
 
@@ -62,29 +70,39 @@ $\mathrm{RSS}_{ij}$ est la mémoire maximale mesurée de la tâche. Avec nos tai
 la contrainte mémoire est toujours respectée (4 $\times$ 515~Mo $<$ 4~Go), mais
 elle est vérifiée par le programme.
 
-C'est un problème d'ordonnancement sur machines hétérogènes avec choix des
-ressources, combinatoire : $|M|^{|T|}$ affectations possibles (plus de
-$10^{1200}$ pour 2000 tâches et 4 VM). Nous utilisons donc des heuristiques.
+Il faut choisir une VM pour chaque tâche : avec 4 VM et 2000 tâches, cela fait
+$4^{2000}$ possibilités (plus de $10^{1200}$), bien trop pour toutes les essayer.
+Nous utilisons donc des \textbf{heuristiques} : des méthodes rapides qui
+trouvent une bonne solution sans garantir la meilleure. Sur un lot de 9 tâches
+($4^9 = 262\,144$ possibilités), on peut en revanche calculer l'optimum exact, ce
+qui permet de mesurer l'écart de notre heuristique (section~\ref{sec:simu}).
 
 \subsection{Validation du modèle}
 
-Avant de comparer des algorithmes avec ce modèle, nous avons vérifié qu'il prédit
-correctement des exécutions réelles. Sur le premier lot réel (9 tâches, RR) :
+Avant d'utiliser ce modèle pour comparer des algorithmes, nous avons vérifié
+qu'il prédit bien la réalité. Pour cela, nous avons exécuté sur GCP un lot de
+9 tâches réparti par Round Robin, puis comparé le makespan mesuré à celui prédit
+par le modèle.
 
 \begin{table}[H]
 \centering\small
-\begin{tabular}{lccc}
+\begin{tabular}{lrrr}
 \toprule
-\textbf{Modèle} & \textbf{Makespan prédit} & \textbf{Makespan mesuré} & \textbf{Réel / prédit} \\
+\textbf{Modèle} & \textbf{Makespan prédit} & \textbf{Makespan mesuré} & \textbf{Écart} \\
 \midrule
-Naïf : médiane seule (comme notre première version) & 0,80 s & 1,32 s & $\times$ 1,65 \\
-Calibré : éq.~\eqref{eq:pij}                        & 1,22 s & 1,32 s & $\times$ 1,08 \\
+Médiane du benchmark seule                             & 0,80 s & 1,32 s & réel $\times$ 1,65 \\
+Avec contention et surcoût SSH (éq.~\ref{eq:pij})      & 1,22 s & 1,32 s & réel $\times$ 1,08 \\
 \bottomrule
 \end{tabular}
-\caption{Validation du modèle sur un lot qui n'a pas servi à le calibrer.}
+\caption{Makespan prédit et mesuré sur un lot de 9 tâches (\mesure{}).}
+\label{tab:validation}
 \end{table}
 
-Ce contrôle est un test automatique du projet (\code{TestPredictionMatchesRealRun}).
-Sur l'expérience « workers », qui a servi au calibrage, l'erreur est de 2\,\% :
-le chiffre honnête est celui du lot indépendant, $\times 1{,}08$. La précision du
-modèle sur les grandes expériences réelles est analysée en section~\ref{sec:reels}.
+Avec la médiane seule, le modèle sous-estime le temps réel de 65\,\%. En
+ajoutant la contention et le surcoût SSH, l'écart tombe à 8\,\%.
+
+Ce lot n'a pas servi à régler les paramètres $\gamma$ et $\omega$, qui viennent
+de l'expérience « workers » : il constitue donc un vrai test. Cette vérification
+est intégrée aux tests automatiques du projet
+(\code{TestPredictionMatchesRealRun}). La précision du modèle sur les lots de
+500 et 2000 tâches est analysée en section~\ref{sec:reels}.

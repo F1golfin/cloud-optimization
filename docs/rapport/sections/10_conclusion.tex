@@ -1,21 +1,36 @@
-% ============================================================================
-\section{Conclusion}
-% ============================================================================
-
-Nous avons construit une chaîne complète et reproductible : des workloads Go
-compilés une fois et déployés sur quatre VM Google Cloud, un orchestrateur qui
-exécute des files de tâches en parallèle et mesure chaque tâche, et un scheduler
-qui décide où exécuter chaque tâche à partir d'un modèle calibré sur nos mesures.
-
-Les mesures ont guidé l'optimisation. Elles ont montré que les VM ont la même
-vitesse par tâche, qu'une VM à 2~vCPU ne vaut qu'environ 1,35 cœur, et que le coût
-dépend avant tout des machines allumées. Notre algorithme \sel{} en tire les
-conséquences : il choisit exactement combien de VM de chaque type allumer, puis
-répartit les tâches avec Max-Min.
-
-En conditions réelles, il réduit le coût de 71\,\% et 29\,\% sur les petits lots et
-le temps de 24\,\% sur le gros lot, par rapport à Round Robin. Le modèle prédit les
-temps à environ $\pm 10\,\%$ quand les VM fonctionnent normalement. La principale
-limite est la variabilité des VM à cœur partagé, qui peut ralentir une machine de
-moitié : c'est elle qu'il faudrait traiter en priorité, par un rééquilibrage
-dynamique ou une mesure des VM juste avant de planifier.
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Algorithme} & \textbf{Makespan mesuré (s)} & \textbf{Coût (\$)} & $\boldsymbol{D/\Drr}$ & $\boldsymbol{S}$ \textbf{mesuré} & $\boldsymbol{S}$ \textbf{prédit} \\
+\midrule
+\multicolumn{6}{l}{\textit{9 tâches (lot du TD3), session 2}} \\
+\textbf{\sel}             & 1,20 $\pm$ 0,05 & \textbf{0,001230} & 0,92 & \textbf{0,541} & 0,589 \\
+Allocation manuelle (TD3) & 1,25 $\pm$ 0,13 & 0,002458 & 0,96 & 0,731 & 0,745 \\
+MET                       & 1,37 $\pm$ 0,04 & 0,002428 & 1,05 & 0,762 & 0,778 \\
+Min-Min                   & 0,87 $\pm$ 0,03 & 0,004272 & 0,67 & 0,868 & 1,026 \\
+Max-Min                   & 1,08 $\pm$ 0,07 & 0,004272 & 0,83 & 0,931 & 0,998 \\
+MCT                       & 1,10 $\pm$ 0,06 & 0,004272 & 0,84 & 0,937 & 0,998 \\
+Round Robin               & 1,30 $\pm$ 0,30 & 0,004272 & 1,00 & 1,000 & 1,000 \\
+\midrule
+\multicolumn{6}{l}{\textit{500 tâches, session 2}} \\
+\textbf{\sel}             & 65,5 $\pm$ 9,3  & \textbf{0,003118} & 1,09 & \textbf{0,864} & 0,819 \\
+Min-Min                   & 46,7 $\pm$ 12,2 & 0,004272 & 0,77 & 0,899 & 0,917 \\
+Max-Min                   & 47,6 $\pm$ 9,0  & 0,004272 & 0,79 & 0,904 & 0,914 \\
+MCT                       & 51,8 $\pm$ 17,0 & 0,004315 & 0,86 & 0,938 & 0,921 \\
+Round Robin               & 60,3 $\pm$ 20,1 & 0,004353 & 1,00 & 1,000 & 1,000 \\
+MET                       & 73,1 $\pm$ 18,6 & 0,003820 & 1,21 & 1,011 & 1,026 \\
+\midrule
+\multicolumn{6}{l}{\textit{2000 tâches, session 4$^{\ddagger}$}} \\
+\textbf{\sel}             & 162,6 $\pm$ 2,6  & 0,007263 & 0,89 & \textbf{0,969} & 0,915 \\
+MCT                       & 165,4 $\pm$ 1,2  & 0,007204 & 0,91 & 0,970 & 0,918 \\
+Min-Min                   & 160,6 $\pm$ 3,1  & 0,007360 & 0,88 & 0,973 & 0,919 \\
+Max-Min                   & 164,3 $\pm$ 2,1  & 0,007318 & 0,90 & 0,977 & 0,915 \\
+Round Robin               & 182,4 $\pm$ 60,4 & \textbf{0,007117} & 1,00 & 1,000 & 1,000 \\
+MET                       & 230,3 $\pm$ 14,5 & 0,008019 & \textbf{1,26}$^{\times}$ & 1,181 & 1,160 \\
+\bottomrule
+\end{tabular}
+\caption{Tous les algorithmes exécutés sur GCP (\mesure{}), triés par score
+mesuré (Session 1).}
+\label{tab:reels_tous}
+\end{table}

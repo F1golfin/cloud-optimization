@@ -29,7 +29,7 @@ PERF="data/vm_performance.csv"
 [[ -x bin/orchestrator ]] || make tools
 mkdir -p "$OUT_DIR"
 
-# ---------------------------------------------------------------- allocation
+# allocation
 # 24 tâches par VM, ordre alterné (petites et grandes mélangées).
 {
     echo "task_id,workload,size,vm"
@@ -41,7 +41,7 @@ mkdir -p "$OUT_DIR"
 } > "$ALLOC"
 echo "Allocation : $ALLOC ($(($(wc -l < "$ALLOC") - 1)) tâches)"
 
-# ---------------------------------------------------------------- exécutions
+# exécutions
 for k in $LEVELS; do
     for r in $(seq 1 "$REPS"); do
         echo
@@ -50,7 +50,7 @@ for k in $LEVELS; do
     done
 done
 
-# ---------------------------------------------------------------- synthèse
+# synthèse
 # Ralentissement : on joint chaque tâche à la médiane du benchmark de SA VM.
 {
     echo "vm,workers,reps,batch_s_mean,throughput_tasks_per_s,slowdown_mean,overhead_s_mean"

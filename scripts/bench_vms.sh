@@ -36,7 +36,7 @@ for pid in "${pids[@]}"; do
     shift
 done
 
-# ---------------------------------------------------------------- agrégation
+# agrégation
 # La médiane résiste mieux qu'une moyenne à une exécution perturbée
 # (voisin bruyant, vCPU partagé des e2-medium) : c'est elle que le scheduler utilise.
 shopt -s nullglob

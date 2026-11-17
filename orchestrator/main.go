@@ -1,19 +1,6 @@
 // Orchestrateur : exécute une allocation sur les VM et collecte les résultats.
 //
-//	allocation.csv ──► une file de tâches par VM ──► N workers par VM (SSH) ──► results.csv
-//
-// Principes :
-//   - Le scheduler DÉCIDE (allocation.csv), l'orchestrateur EXÉCUTE : il ne
-//     déplace jamais une tâche vers une autre VM que celle choisie.
-//   - Chaque VM a sa propre file ; toutes les VM travaillent en parallèle, et
-//     sur une VM, N workers (par défaut N = nombre de vCPU) vident la file.
-//   - Une seule connexion SSH par VM, réutilisée par toutes ses tâches
-//     (multiplexage OpenSSH ControlMaster) : on ne paie pas une poignée de
-//     main SSH (~0,5–1 s) par tâche.
-//   - Les horodatages début/fin sont pris SUR LA MACHINE DE CONTRÔLE, avec une
-//     seule horloge : pas de problème de synchronisation entre VM. La durée
-//     mesurée inclut donc le surcoût réseau/SSH, que l'on isole en le
-//     comparant au runtime_s renvoyé par le workload lui-même.
+//	allocation.csv -> une file de tâches par VM -> N workers par VM (SSH) -> results.csv
 //
 // Usage :
 //
@@ -132,7 +119,7 @@ func main() {
 	check(runner.Prepare(vms))
 	defer runner.Close()
 
-	// ------------------------------------------------------------ exécution
+	// exécution
 	var (
 		mu      sync.Mutex
 		results []Result
@@ -213,7 +200,7 @@ func execute(runner Runner, vm string, worker int, t Task, t0 time.Time, timeout
 	return r
 }
 
-// ------------------------------------------------------------ SSH vers GCP
+// SSH vers GCP
 
 type sshRunner struct {
 	project, zone, user, key, remoteDir string
@@ -266,8 +253,7 @@ func (s *sshRunner) Prepare(vms []string) error {
 			defer wg.Done()
 			// Juste après « manage_vms.sh start », la VM est RUNNING mais son
 			// serveur SSH démarre encore (« Connection refused ») : on réessaie
-			// pendant ~2 minutes. Une erreur de clé, elle, ne se corrige pas
-			// toute seule : on abandonne aussitôt.
+			// pendant ~2 minutes.
 			var out []byte
 			var err error
 			for attempt := 1; attempt <= 24; attempt++ {
@@ -337,7 +323,7 @@ func (s *sshRunner) Close() {
 	}
 }
 
-// ------------------------------------------------------------ mode local (test)
+// mode local (test)
 
 type localRunner struct{ binDir string }
 
@@ -369,7 +355,7 @@ func runCmd(ctx context.Context, name string, args ...string) (string, error) {
 	return string(out), err
 }
 
-// ------------------------------------------------------------ entrées / sorties
+// entrées / sorties
 
 func readCSV(path string, want []string) ([]map[string]string, error) {
 	f, err := os.Open(path)

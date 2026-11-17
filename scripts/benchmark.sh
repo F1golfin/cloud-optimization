@@ -86,7 +86,7 @@ while getopts "m:w:s:r:o:ah" opt; do
     esac
 done
 
-# ---------------------------------------------------------------- vérifications
+# vérifications
 [[ "$RUNS" =~ ^[1-9][0-9]*$ ]] || die "-r doit être un entier >= 1"
 [[ "$MACHINE" =~ ^[A-Za-z0-9_.-]+$ ]] || die "-m : nom de machine invalide ($MACHINE)"
 OUT="${OUT:-results/benchmark_${MACHINE}.csv}"
@@ -145,7 +145,7 @@ run_once() {
 }
 export WALL_FILE="$TMP/wall"
 
-# ---------------------------------------------------------------- campagne
+# campagne
 mkdir -p "$(dirname "$OUT")"
 if [[ "$APPEND" -eq 0 || ! -s "$OUT" ]]; then
     echo "machine,workload,size,run,runtime_s,max_rss_kb" > "$OUT"
@@ -177,7 +177,7 @@ for w in $WORKLOADS; do
     done
 done
 
-# ---------------------------------------------------------------- calculs
+# calculs
 echo
 echo "Résumé (calculé à partir des mesures brutes de $OUT) :"
 # Colonnes : 1 machine, 2 workload, 3 size, 4 run, 5 runtime_s, 6 max_rss_kb

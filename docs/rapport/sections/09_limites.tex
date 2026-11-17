@@ -4,52 +4,68 @@
 % ============================================================================
 
 \subsection{Ce que les mesures nous ont appris}
-
 \begin{enumerate}
-  \item \textbf{Mesurer avant d'optimiser change le problème.} Nos premières
-        hypothèses (HighCPU plus rapide, 2~vCPU = 2 tâches à pleine vitesse) étaient
-        fausses. Les corriger a divisé l'erreur du modèle par environ 3 et déplacé
-        l'optimisation vers le choix des VM.
-  \item \textbf{Le choix des VM compte plus que la répartition fine}, surtout pour
-        les petits lots, à cause de la facturation minimale de 60~s.
-  \item \textbf{Une règle intuitive ne suffit pas} : « éteindre vm1 » est vrai sur
-        500 tâches et faux sur 2000. Calculer toutes les combinaisons tranche.
+  \item \textbf{Mesurer avant d'optimiser change le problème.} Deux idées
+        intuitives se sont révélées fausses : HighCPU n'est pas plus rapide
+        par tâche, et une VM à 2~vCPU n'exécute pas 2 tâches à pleine vitesse.
+        En tenir compte a fait passer l'erreur du modèle de 65\,\% à 8\,\%
+        (tableau~\ref{tab:validation}), et a montré que le vrai levier est le
+        choix des VM à allumer.
+  \item \textbf{Le choix des VM compte plus que la répartition des tâches},
+        surtout pour les petits lots, à cause de la facturation minimale de
+        60~s.
+  \item \textbf{Une règle fixe ne suffit pas} : éteindre vm1 est le bon choix
+        sur 500 tâches, mais pas sur 2000. Seul le calcul de toutes les
+        combinaisons permet de trancher.
 \end{enumerate}
 
 \subsection{Limites}
 
 \paragraph{Variabilité des VM à cœur partagé.} C'est la limite principale. Les
-e2-medium sont les VM les moins chères — et donc celles que préfère notre
-algorithme — mais leur vitesse peut chuter de moitié sous charge prolongée. Notre
-modèle, calibré sur des mesures courtes, ne le prévoit pas, et un planning calculé
-à l'avance ne s'y adapte pas.
+e2-medium sont les VM les moins chères, et donc celles que préfère notre
+algorithme. Mais GCP ne leur garantit qu'un vCPU sur deux : au-delà, elles
+dépendent de rafales limitées, et leur vitesse peut chuter de moitié sous charge
+prolongée (section~\ref{sec:vm3}). Notre modèle, calibré sur des mesures courtes
+(tableau~\ref{tab:debitprix}), ne le prévoit pas, et un planning calculé à
+l'avance ne s'y adapte pas.
+
+Nous avons simulé ce pire cas en modélisant les deux e2-medium à mi-vitesse
+($\gamma = 2{,}8$ au lieu de 1,4). \sel{} change alors de choix : highcpu seule
+sur 9 tâches, une seule e2-medium et highcpu sur 500 tâches, toujours les 4 VM
+sur 2000 tâches. Sur 9 tâches, ce scénario ne se produit pas en pratique : aucune
+VM n'a été bridée sur un lot aussi court. Sur les lots longs, un modèle à deux
+vitesses (pleine vitesse pendant la rafale, puis vitesse garantie) donnerait des
+choix plus prudents.
 
 \paragraph{Planning statique.} Le scheduler décide tout avant l'exécution ; si une
 VM ralentit, ses tâches attendent même si d'autres VM ont fini.
 
-\paragraph{Coût modélisé, pas facture.} Notre coût compte la fenêtre active de
-chaque VM (minimum 60~s). La facture réelle inclut aussi le démarrage des VM, le
-temps entre deux commandes, l'adresse IP et le disque. Notre coût est le bon
-indicateur pour \emph{comparer} des allocations (ces frais sont identiques pour
-toutes), pas pour annoncer une économie en euros.
+\paragraph{Peu de répétitions.} Chaque algorithme n'a été exécuté que 3 fois par
+session. C'est suffisant pour les écarts de coût, stables d'une exécution à
+l'autre, mais pas pour départager des makespans proches quand une VM est bridée.
 
-\paragraph{Tâches très courtes.} Nos tâches durent 0,02 à 1,5~s : pour les plus
-courtes, le surcoût SSH (0,1~s) dépasse le calcul.
+\paragraph{Contention appliquée partout.} Le modèle ralentit toutes les tâches
+de $\times 1{,}4$, comme si chaque VM était pleinement occupée. C'est juste sur les
+gros lots, mais trop pessimiste sur les petits, où une VM peut n'exécuter qu'une
+tâche : sur 9 tâches, Min-Min (une seule tâche sur vm2), prédit le plus lent,
+s'est révélé le plus rapide.
 
-\paragraph{Maquette réduite.} En production, on raisonnerait sur un catalogue de
-types de machines (et non 4 VM fixes), avec des VM Spot (60 à 90\,\% moins chères
-mais interruptibles) et un service comme Cloud Batch. La question resterait la
-même : combien de machines de chaque type louer, et comment répartir le travail.
-Notre raisonnement par types de VM s'y transpose directement.
+\paragraph{Contrainte de délai relative.} L'échéance $D \le 1{,}25 \cdot \Drr$
+dépend de RR : plus RR est lent, plus elle est lâche. Elle sert à comparer les
+algorithmes sur des lots de tailles très différentes ; pour un client réel, on la
+remplacerait par son échéance contractuelle, sans changer l'algorithme.
 
-\paragraph{Processeur variable.} Les VM e2 peuvent être placées sur des
-générations de processeurs différentes d'un démarrage à l'autre ; nous l'avons
-observé une fois sur vm1. L'orchestrateur relève désormais le modèle de
-processeur à chaque lot.
+\paragraph{Coût calculé, pas facture réelle.} Notre coût ne compte que le temps
+de travail des VM (au moins 60~s), sans le démarrage, les temps morts, le
+disque ni l'IP. Il sert à \emph{comparer} les allocations, pas à chiffrer une
+économie réelle.
 
 \subsection{Pistes d'amélioration}
 
 \begin{itemize}
+  \item \textbf{Modéliser deux vitesses pour les e2-medium} : pleine vitesse
+        pendant la rafale, environ moitié au-delà. Les prédictions des lots longs
+        seraient plus prudentes et \sel{} enverrait moins de tâches aux e2-medium.
   \item \textbf{Mesurer la vitesse réelle des VM juste avant de planifier} (quelques
         tâches de test), et mettre à jour le modèle.
   \item \textbf{Rééquilibrage dynamique} (\emph{work stealing}) : une VM qui a fini
@@ -58,7 +74,6 @@ processeur à chaque lot.
         le bridage des e2-medium.
   \item \textbf{Recherche locale} après \sel{} (déplacements et échanges qui font
         baisser $S$), pour affiner la répartition au-delà de Max-Min.
-  \item \textbf{Analyse de sensibilité} des poids du score (par exemple 80/20) :
-        avec un poids plus fort sur le coût, l'algorithme devrait éteindre vm1
-        même sur 2000 tâches.
+  \item \textbf{Plus de répétitions} (10 par algorithme) pour départager les
+        makespans proches.
 \end{itemize}

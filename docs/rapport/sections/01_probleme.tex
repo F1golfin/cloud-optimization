@@ -15,16 +15,15 @@ l'\textbf{infrastructure} (VM Google Compute Engine), le \textbf{scheduler}
 \emph{exécute} réellement les tâches et collecte les résultats).
 
 Pour donner un sens à l'optimisation, nous nous plaçons dans la situation
-(fictive) d'une \textbf{petite entreprise de traitement par lots}, qui exécute
+d'une \textbf{petite entreprise}, qui exécute
 des calculs pour ses clients : calcul numérique, traitement mémoire, calcul
 matriciel, tri de données. Ce n'est pas un service web : un résultat livré
 quelques secondes plus tard est acceptable, mais chaque euro dépensé inutilement
-se répète à chaque lot. Ses priorités, par ordre d'importance :
+se répercute sur le prix des prestations. Ses priorités, par ordre d'importance :
 \begin{enumerate}
-  \item \textbf{réduire la facture cloud} ;
-  \item \textbf{conserver un délai raisonnable} ;
-  \item pouvoir traiter des lots de quelques tâches à plusieurs milliers ;
-  \item rester simple à maintenir et à expliquer.
+  \item \textbf{réduire la facture cloud}
+  \item \textbf{conserver un délai raisonnable}
+  \item pouvoir traiter des lots de quelques tâches à plusieurs milliers
 \end{enumerate}
 
 \subsection{Objectif et contrainte}
@@ -45,38 +44,23 @@ Ces deux grandeurs n'ont pas la même unité. Nous les normalisons par celles de
   \label{eq:score}
 \end{equation}
 
-Le poids de 60\,\% sur le coût traduit la priorité de l'entreprise. Ce n'est pas
-une valeur imposée : c'est un \textbf{paramètre} du scheduler (option
-\code{-wcost}). Pour éviter qu'une solution très économique mais très lente soit
-retenue, nous ajoutons une \textbf{contrainte de délai} :
+Le poids de 60\,\% sur le coût traduit la priorité de l'entreprise ; c'est un
+paramètre du scheduler (\code{-wcost}). Pour éviter qu'une solution très
+économique mais très lente soit retenue, nous ajoutons une \textbf{contrainte de
+délai} :
 \begin{equation}
   D \le 1{,}25 \cdot \Drr
   \label{eq:deadline}
 \end{equation}
 Une allocation qui la viole est dite \emph{non admissible}, quel que soit son
-score. Le seuil de 125\,\% est un choix de conception, lui aussi paramétrable
-(\code{-deadline}).
+score.
 
-\subsection{Ce qui a changé depuis notre première version}
-
-Une première version du projet proposait un algorithme « V8 » (glouton pondéré
-puis recherche locale), évalué uniquement en simulation, et dont le modèle de
-durée sous-estimait les temps réels d'un facteur 3. Nous avons repris le projet
-en partant des mesures. Le scénario, le score $S$ et la contrainte de délai sont
-conservés ; le reste a été refait :
-
-\begin{table}[H]
-\centering\small
-\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.3cm}XX}
-\toprule
- & \textbf{Première version} & \textbf{Version actuelle} \\
-\midrule
-Mesures & 180 mesures, VM3 recopiée sur VM2 & 4 VM mesurées séparément + mesure du parallélisme réel \\
-Modèle de durée & médiane du benchmark (erreur $\times 3$) & médiane $\times$ contention + surcoût SSH (erreur $\approx \pm 10\,\%$) \\
-Algorithme & V8 : recherche locale qui minimise le makespan & \sel{} : choix exact des VM à allumer + Max-Min, minimise $S$ \\
-Exécution distribuée & non démontrée & orchestrateur Go, des milliers de tâches exécutées \\
-Résultats & simulés uniquement & simulés \emph{et} mesurés sur GCP \\
-\bottomrule
-\end{tabularx}
-\caption{Évolution du projet.}
-\end{table}
+\paragraph{Pourquoi une échéance relative à RR ?} Pour deux raisons. D'abord, nos
+lots durent de 1~s à plusieurs minutes : une échéance absolue unique n'aurait de
+sens que pour l'un d'eux. Ensuite, RR est ce que ferait un opérateur sans
+scheduler : la contrainte garantit qu'optimiser le coût ne rend jamais le lot plus
+de 25\,\% plus lent que cette solution naïve. Sa limite est connue : plus RR est
+lent, plus la contrainte est lâche. Une entreprise qui a une échéance
+contractuelle par lot remplacerait simplement $1{,}25 \cdot \Drr$ par cette
+échéance ; l'algorithme ne change pas, seul le test d'admissibilité change. Le
+seuil de 25\,\% est lui aussi paramétrable (\code{-deadline}).
