@@ -11,7 +11,7 @@
 #   results/bench_logs/<vm>.log  sortie console de chaque VM
 #   data/vm_performance.csv      1 ligne par (machine, workload, taille) :
 #                                médiane, moyenne, écart-type, RSS max
-#                                (reconstruit à partir de TOUS les results/benchmark_cloudopt-*.csv)
+#                                (reconstruit pour TOUTES les VM de data/machines.csv)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/config.sh
@@ -39,8 +39,11 @@ done
 # agrégation
 # La médiane résiste mieux qu'une moyenne à une exécution perturbée
 # (voisin bruyant, vCPU partagé des e2-medium) : c'est elle que le scheduler utilise.
-shopt -s nullglob
-files=(results/benchmark_cloudopt-*.csv)
+# Toutes les VM du CSV (pas seulement celles de VMS), pour garder le tableau complet.
+files=()
+for vm in $(csv_column vm); do
+    if [[ -f "results/benchmark_$vm.csv" ]]; then files+=("results/benchmark_$vm.csv"); fi
+done
 if (( ${#files[@]} > 0 )); then
     {
         echo "machine,workload,size,runs,median_s,mean_s,std_s,max_rss_kb"

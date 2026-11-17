@@ -99,15 +99,18 @@ scheduler. Le benchmark local a été fait sous Linux (VM OrbStack, Ubuntu arm64
 ## Infrastructure GCP
 
 ```bash
-./scripts/manage_vms.sh create   # crée / corrige les 4 VM (scripts/config.sh)
+./scripts/manage_vms.sh create   # crée / corrige les VM de data/machines.csv
 ./scripts/manage_vms.sh start
 ./scripts/deploy.sh              # make linux + copie des binaires sur chaque VM
 ./scripts/bench_vms.sh           # benchmark sur chaque VM -> data/vm_performance.csv
 ./scripts/manage_vms.sh stop     # TOUJOURS à la fin
 ```
 
-`data/machines.csv` décrit les VM (type, vCPU, RAM, prix horaire) ; il est lu
-par le scheduler et par l'orchestrateur.
+`data/machines.csv` est le **seul endroit** où les VM sont décrites (nom, type GCP,
+vCPU, RAM, prix horaire, contention). Il est lu par le scheduler (modèle) et par
+les scripts (`scripts/config.sh` : création, démarrage, arrêt, déploiement).
+Ajouter, retirer ou changer le type d'une VM = modifier une ligne de ce fichier.
+`scripts/config.sh` ne contient plus que le projet GCP et la zone.
 
 ## Orchestrateur
 

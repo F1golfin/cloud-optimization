@@ -5,8 +5,11 @@
 
 \subsection{Déploiement}
 
-Les VM sont gérées par des scripts \code{gcloud} qui lisent une configuration
-unique (\code{scripts/config.sh} : projet, zone, liste des VM et leur type).
+Les VM sont gérées par des scripts \code{gcloud}. Elles sont décrites à un seul
+endroit, \code{data/machines.csv} (nom, type GCP, vCPU, RAM, prix, contention),
+lu à la fois par ces scripts et par le scheduler : changer de parc de VM revient à
+modifier ce fichier. Seuls le projet et la zone GCP sont dans
+\code{scripts/config.sh}.
 
 \begin{lstlisting}
 ./scripts/manage_vms.sh create   # crée les VM manquantes, corrige le type si besoin

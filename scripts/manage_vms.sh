@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Gestion du cycle de vie des VM du projet (voir scripts/config.sh).
+# Gestion du cycle de vie des VM du projet : celles de data/machines.csv
+# (nom et type GCP), lues par scripts/config.sh.
 #
 # Usage : ./scripts/manage_vms.sh {create|start|stop|status|delete}
 #
@@ -56,7 +57,7 @@ stop_vms() {
 
 status_vms() {
     gcloud compute instances list --project="$PROJECT" \
-        --filter="name~'^cloudopt-'" \
+        --filter="name=( $VMS )" \
         --format="table(name,zone.basename(),machineType.basename(),status)"
 }
 
@@ -74,5 +75,5 @@ case "${1:-}" in
     stop)   stop_vms ;;
     status) status_vms ;;
     delete) delete_vms ;;
-    *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    *) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

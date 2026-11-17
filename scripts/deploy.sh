@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Déploie les workloads compilés sur les VM (qui doivent être démarrées).
 #
-# Usage : ./scripts/deploy.sh            (toutes les VM de config.sh)
+# Usage : ./scripts/deploy.sh            (toutes les VM de data/machines.csv)
 #         VMS="cloudopt-vm1" ./scripts/deploy.sh
 #
 # Principe : on compile UNE fois, sur la machine de contrôle, pour linux/amd64
