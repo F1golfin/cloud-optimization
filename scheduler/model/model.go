@@ -30,7 +30,6 @@ type Machine struct {
 	RAMMB        int     // mémoire de la VM
 	PricePerHour float64 // $/h
 	Contention   float64 // ralentissement mesuré quand tous les workers tournent (expérience workers)
-	Speed        float64 // modèle V2 : vitesse par tâche relative à la VM de référence (colonne optionnelle « speed », 1 par défaut)
 }
 
 // Params : hypothèses du modèle, toutes issues de mesures ou de nos choix de projet.
@@ -39,14 +38,6 @@ type Params struct {
 	MinBilledS     float64 // facturation minimale par VM allumée (règle GCP : 60 s)
 	WeightCost     float64 // poids du coût dans S (0,6) ; le temps pèse 1 - WeightCost
 	DeadlineFactor float64 // contrainte D <= DeadlineFactor x D_RR (1,25)
-
-	// RefVM choisit le modèle de durée :
-	//   ""  (V1, par défaut) : chaque VM a son propre benchmark et sa propre contention ;
-	//   nom (V2, « par caractéristiques ») : seule cette VM de référence est mesurée.
-	//        Les autres sont prédites à partir de leur fiche (machines.csv) :
-	//        durée = médiane de la référence / speed x contention de la référence + surcoût.
-	//        Les workers et la RAM viennent toujours de vcpu et ram_mb.
-	RefVM string
 }
 
 func DefaultParams() Params {
@@ -100,14 +91,7 @@ func Load(tasksPath, machinesPath, perfPath string, exclude []string, p Params) 
 	if err != nil {
 		return nil, err
 	}
-	var refContention float64
 	for _, r := range rows {
-		if r["vm"] == p.RefVM {
-			// la référence sert même si elle est exclue des VM disponibles
-			if c, err := strconv.ParseFloat(r["contention"], 64); err == nil {
-				refContention = c
-			}
-		}
 		if skip[r["vm"]] {
 			continue
 		}
@@ -118,20 +102,8 @@ func Load(tasksPath, machinesPath, perfPath string, exclude []string, p Params) 
 		if e1 != nil || e2 != nil || e3 != nil || e4 != nil || vcpu <= 0 || cont <= 0 {
 			return nil, fmt.Errorf("%s : ligne invalide pour %s", machinesPath, r["vm"])
 		}
-		speed := 1.0
-		if v, ok := r["speed"]; ok && v != "" {
-			if speed, err = strconv.ParseFloat(v, 64); err != nil || speed <= 0 {
-				return nil, fmt.Errorf("%s : vitesse invalide pour %s", machinesPath, r["vm"])
-			}
-		}
 		in.Machines = append(in.Machines, Machine{Name: r["vm"], Type: r["machine_type"],
-			VCPU: vcpu, RAMMB: ram, PricePerHour: price, Contention: cont, Speed: speed})
-		if r["vm"] == p.RefVM {
-			refContention = cont
-		}
-	}
-	if p.RefVM != "" && refContention == 0 {
-		return nil, fmt.Errorf("VM de référence %s absente de %s", p.RefVM, machinesPath)
+			VCPU: vcpu, RAMMB: ram, PricePerHour: price, Contention: cont})
 	}
 	if len(in.Machines) == 0 {
 		return nil, fmt.Errorf("aucune VM disponible")
@@ -164,16 +136,12 @@ func Load(tasksPath, machinesPath, perfPath string, exclude []string, p Params) 
 		in.P[i] = make([]float64, len(in.Machines))
 		in.RSS[i] = make([]int, len(in.Machines))
 		for j, m := range in.Machines {
-			src, factor, cont := m.Name, 1.0, m.Contention // V1 : la VM elle-même
-			if p.RefVM != "" {                             // V2 : la référence + la fiche de la VM
-				src, factor, cont = p.RefVM, 1/m.Speed, refContention
-			}
-			k := key{src, t.Workload, t.Size}
+			k := key{m.Name, t.Workload, t.Size}
 			med, ok := median[k]
 			if !ok {
-				return nil, fmt.Errorf("pas de mesure pour %s %d sur %s (taille absente du benchmark)", t.Workload, t.Size, src)
+				return nil, fmt.Errorf("pas de mesure pour %s %d sur %s (taille absente du benchmark)", t.Workload, t.Size, m.Name)
 			}
-			in.P[i][j] = med*factor*cont + p.OverheadS
+			in.P[i][j] = med*m.Contention + p.OverheadS
 			in.RSS[i][j] = rss[k]
 		}
 	}
@@ -376,10 +344,8 @@ func readCSV(path string, want ...string) ([]map[string]string, error) {
 	out := make([]map[string]string, 0, len(rows)-1)
 	for _, row := range rows[1:] {
 		m := map[string]string{}
-		for name, i := range col { // toutes les colonnes : les obligatoires et les optionnelles
-			if i < len(row) {
-				m[name] = strings.TrimSpace(row[i])
-			}
+		for _, w := range want {
+			m[w] = strings.TrimSpace(row[col[w]])
 		}
 		out = append(out, m)
 	}

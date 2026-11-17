@@ -19,14 +19,6 @@ make linux
 
 for vm in $VMS; do
     echo "===== $vm ====="
-    # Juste après create/start, une VM est RUNNING mais sshd n'accepte pas encore
-    # les connexions : on attend (jusqu'à ~3 min).
-    for try in $(seq 1 12); do
-        gssh "$vm" --command=true >/dev/null 2>&1 && break
-        [[ $try == 12 ]] && { echo "Erreur : $vm injoignable en SSH" >&2; exit 1; }
-        echo "  SSH pas encore prêt, nouvel essai dans 15 s ($try/12)..."
-        sleep 15
-    done
     gssh "$vm" --command="mkdir -p ~/$REMOTE_DIR/bin ~/$REMOTE_DIR/scripts ~/$REMOTE_DIR/results
         command -v perl >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq perl; }
         [ -x /usr/bin/time ] || { sudo apt-get update -qq && sudo apt-get install -y -qq time; }"

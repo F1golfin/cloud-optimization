@@ -177,42 +177,6 @@ Options du mode compare : `-csv <fichier>` (tableau), `-save-dir <dossier>`
 - Les sorties du scheduler sont des **prédictions** ; seules celles de
   l'orchestrateur sont des **mesures**.
 
-### Modèle V2 : prédire des VM jamais mesurées (option `-ref`)
-
-Par défaut (V1), chaque VM a son propre benchmark. Avec `-ref <vm>`, seule cette
-VM de référence est mesurée ; les autres sont prédites à partir de leur fiche
-dans `data/machines.csv` :
-
-- durée = médiane de la référence ÷ `speed` × contention de la référence + 0,1 s ;
-- `speed` (colonne optionnelle, 1 par défaut) = vitesse par tâche relative à la
-  référence : 1 pour toute la famille e2 (mesuré : ±5 %), sinon le rapport des
-  scores de benchmark publiés par Google pour chaque type de machine ;
-- workers = `vcpu`, mémoire = `ram_mb`, coût = `price_per_hour`, comme en V1.
-
-```bash
-./bin/scheduler -algo select-maxmin -tasks data/tasks_500.csv -ref cloudopt-vm2
-./bin/modelcheck -ref cloudopt-vm2 results/exp_real/*/ results/exp_real_all/*/ > v2.csv
-```
-
-`modelcheck` compare, VM par VM, la fin prédite à la fin mesurée dans toutes
-les exécutions réelles passées (validation : `docs/RESULTATS.md` § 9 quater).
-
-**Test sur des VM jamais mesurées, d'autres types et familles** (e2-standard-4,
-n2-standard-2, n2d-standard-2, t2d-standard-2 ; parc décrit dans
-`data/machines_newvms.csv`, prix indicatifs non utilisés par le test) :
-
-```bash
-./scripts/exp_newvms.sh      # crée les 4 VM, benchmark, Round Robin 500 + 2000 tâches, arrêt (~25 min)
-./scripts/newvms_report.sh   # analyse sans GCP -> results/exp_newvms/report.md
-MACHINES_CSV=data/machines_newvms.csv \
-  VMS="cloudopt-n-e2std4 cloudopt-n-n2 cloudopt-n-n2d cloudopt-n-t2d" ./scripts/manage_vms.sh delete
-```
-
-Le rapport compare cinq prédictions de la fin de chaque VM : fiche seule,
-fiche + 1 tâche, fiche + 4 tâches (une par type), la même en tenant compte de
-l'hyperthreading (colonne `threads_per_core`), benchmark complet. Résultats :
-`docs/RESULTATS.md` § 9 quinquies.
-
 ## Expérience réelle : RR contre select-maxmin
 
 ```bash

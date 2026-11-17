@@ -51,7 +51,6 @@ func main() {
 	flag.Float64Var(&p.OverheadS, "overhead", p.OverheadS, "surcoût SSH par tâche (s)")
 	flag.Float64Var(&p.WeightCost, "wcost", p.WeightCost, "poids du coût dans S (le temps pèse 1 - wcost)")
 	flag.Float64Var(&p.DeadlineFactor, "deadline", p.DeadlineFactor, "contrainte D <= deadline x D_RR")
-	flag.StringVar(&p.RefVM, "ref", "", "modèle V2 : prédit toutes les VM à partir du benchmark de cette seule VM et de leur fiche (machines.csv) ; vide = modèle V1")
 	flag.Parse()
 
 	if *tasks == "" {
@@ -74,12 +73,8 @@ func main() {
 		names[j] = m.Name
 	}
 	fmt.Printf("Lot %s : %d tâches | VM : %s\n", *tasks, len(in.Tasks), strings.Join(names, ", "))
-	if p.RefVM == "" {
-		fmt.Printf("Modèle V1 : durée = médiane benchmark de la VM x contention + %.2f s", p.OverheadS)
-	} else {
-		fmt.Printf("Modèle V2 : durée = médiane benchmark de %s / speed x contention + %.2f s", p.RefVM, p.OverheadS)
-	}
-	fmt.Printf(" | S = %.1f·C/C_RR + %.1f·D/D_RR | D <= %.2f x D_RR = %.3f s\n\n", p.WeightCost, 1-p.WeightCost, p.DeadlineFactor, p.DeadlineFactor*ref.Makespan)
+	fmt.Printf("Modèle : durée = médiane benchmark x contention + %.2f s | S = %.1f·C/C_RR + %.1f·D/D_RR | D <= %.2f x D_RR = %.3f s\n\n",
+		p.OverheadS, p.WeightCost, 1-p.WeightCost, p.DeadlineFactor, p.DeadlineFactor*ref.Makespan)
 
 	if *explain {
 		// Tableau de justification de select-maxmin : une ligne par combinaison
