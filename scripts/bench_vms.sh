@@ -16,6 +16,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/config.sh
 
+# Fichier produit (un autre parc de VM peut écrire ailleurs : PERF_OUT=...).
+PERF_OUT="${PERF_OUT:-data/vm_performance.csv}"
+
 mkdir -p results/bench_logs
 
 pids=()
@@ -65,11 +68,11 @@ if (( ${#files[@]} > 0 )); then
                 if ($6 > rss) rss = $6
             }
             END { flush() }'
-    } > data/vm_performance.csv
+    } > "$PERF_OUT"
     echo
-    echo "data/vm_performance.csv :"
+    echo "$PERF_OUT :"
     # `column` n'est pas installé partout (Ubuntu minimal) : on aligne avec awk.
-    awk -F, '{ printf "%-17s %-12s %9s %4s %9s %9s %9s %10s\n", $1, $2, $3, $4, $5, $6, $7, $8 }' data/vm_performance.csv
+    awk -F, '{ printf "%-17s %-12s %9s %4s %9s %9s %9s %10s\n", $1, $2, $3, $4, $5, $6, $7, $8 }' "$PERF_OUT"
 fi
 
 echo

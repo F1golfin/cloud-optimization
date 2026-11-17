@@ -197,6 +197,20 @@ dans `data/machines.csv` :
 `modelcheck` compare, VM par VM, la fin prédite à la fin mesurée dans toutes
 les exécutions réelles passées (validation : `docs/RESULTATS.md` § 9 quater).
 
+**Test sur des VM jamais mesurées, d'autres types et familles** (e2-standard-4,
+n2-standard-2, n2d-standard-2, t2d-standard-2 ; parc décrit dans
+`data/machines_newvms.csv`, prix indicatifs non utilisés par le test) :
+
+```bash
+./scripts/exp_newvms.sh      # crée les 4 VM, benchmark, Round Robin 500 + 2000 tâches, arrêt (~25 min)
+./scripts/newvms_report.sh   # analyse sans GCP -> results/exp_newvms/report.md
+MACHINES_CSV=data/machines_newvms.csv \
+  VMS="cloudopt-n-e2std4 cloudopt-n-n2 cloudopt-n-n2d cloudopt-n-t2d" ./scripts/manage_vms.sh delete
+```
+
+Le rapport compare trois prédictions de la fin de chaque VM : fiche seule,
+fiche + une tâche de calibration, benchmark complet.
+
 ## Expérience réelle : RR contre select-maxmin
 
 ```bash

@@ -87,7 +87,12 @@ func throttled(rows []map[string]string) map[string]bool {
 	return out
 }
 
+// lotOf : le lot d'un dossier de scripts/exp_real.sh (dossier = nom du lot,
+// éventuellement suivi d'un suffixe de session, ex. tasks_2000_session2).
 func lotOf(name string) string {
+	if _, err := os.Stat("data/" + name + ".csv"); err == nil {
+		return "data/" + name + ".csv"
+	}
 	switch {
 	case strings.HasPrefix(name, "tasks_2000"):
 		return "data/tasks_2000.csv"

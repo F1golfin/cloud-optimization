@@ -29,6 +29,10 @@ ALGOS="${ALGOS:-rr select-maxmin}"
 REPS="${REPS:-3}"
 OUT="${OUT:-results/exp_real}"
 MANUAL="${MANUAL:-data/allocation_manual.csv}"   # allocation faite à la main (TD3)
+# Autre parc de VM : MACHINES_CSV=data/machines_newvms.csv ; options du scheduler
+# en plus (modèle V2, VM exclues...) : SCHED_FLAGS="-ref cloudopt-vm2 -exclude cloudopt-vm2".
+MACHINES="${MACHINES_CSV:-data/machines.csv}"
+read -r -a sched_flags <<< "${SCHED_FLAGS:-}"
 
 [[ -x bin/scheduler && -x bin/orchestrator ]] || make tools
 # Rappel affiché quoi qu'il arrive, même si une exécution échoue en cours de route.
@@ -52,17 +56,17 @@ for lot in $LOTS; do
             echo "  manual : allocation $MANUAL"
             continue
         fi
-        ./bin/scheduler -algo "$algo" -tasks "$lot" -out "$dir/alloc_$algo.csv" > "$dir/scheduler_$algo.txt"
+        ./bin/scheduler -machines "$MACHINES" ${sched_flags[@]+"${sched_flags[@]}"} -algo "$algo" -tasks "$lot" -out "$dir/alloc_$algo.csv" > "$dir/scheduler_$algo.txt"
         grep "VM à démarrer" "$dir/scheduler_$algo.txt" | sed "s/^/  $algo : /"
     done
-    ./bin/scheduler -compare -tasks "$lot" -csv "$dir/predicted.csv" ${eval_flags[@]+"${eval_flags[@]}"} > /dev/null
+    ./bin/scheduler -machines "$MACHINES" ${sched_flags[@]+"${sched_flags[@]}"} -compare -tasks "$lot" -csv "$dir/predicted.csv" ${eval_flags[@]+"${eval_flags[@]}"} > /dev/null
 
     # 2. Exécutions réelles, algorithmes alternés.
     for r in $(seq 1 "$REPS"); do
         for algo in $ALGOS; do
             echo
             echo "===== $name | $algo | répétition $r/$REPS ====="
-            ./bin/orchestrator ${ORCH_FLAGS:-} -alloc "$dir/alloc_$algo.csv" -out "$dir/${algo}_r$r.csv" | tail -9
+            ./bin/orchestrator ${ORCH_FLAGS:-} -machines "$MACHINES" -alloc "$dir/alloc_$algo.csv" -out "$dir/${algo}_r$r.csv" | tail -9
         done
     done
 
