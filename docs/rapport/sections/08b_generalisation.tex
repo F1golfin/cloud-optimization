@@ -1,0 +1,103 @@
+% ============================================================================
+% Sous-section à placer à la fin de la section 8 (Résultats réels), après
+% l'investigation sur les e2-medium. Chiffres : results/exp_newvms/report.md
+% (scripts/exp_newvms.sh puis scripts/newvms_report.sh).
+% ============================================================================
+\subsection{Généralisation : des VM jamais mesurées}
+\label{sec:generalisation}
+
+Notre modèle est calibré sur les quatre VM qui servent aussi aux expériences. Il
+ne prouve donc pas qu'il sait prédire \emph{un autre} parc de machines. Pour le
+vérifier, nous avons créé quatre VM jamais mesurées, de types et de familles
+différents, et prédit leurs temps \textbf{avant} de regarder leurs mesures :
+
+\begin{itemize}
+  \item \textbf{e2-standard-4} : même famille que notre parc, mais 4~vCPU ;
+  \item \textbf{n2-standard-2} : autre famille, processeur Intel à 2,8~GHz ;
+  \item \textbf{n2d-standard-2} : autre famille, processeur AMD EPYC 7B13 ;
+  \item \textbf{t2d-standard-2} : AMD EPYC 7B13, sans \emph{hyperthreading}
+        (1~vCPU = 1~cœur physique).
+\end{itemize}
+
+Round Robin a exécuté les lots de 500 et 2000 tâches sur ces quatre VM, 3 fois
+chacun (\mesure{}, \code{results/exp\_newvms/}). Les mesures sont très stables
+($\pm 0{,}3\,\%$), sans bridage. Nous avons comparé la fin mesurée de chaque VM à
+cinq prédictions, de la moins coûteuse à la plus coûteuse en mesures :
+
+\begin{itemize}
+  \item \textbf{A, fiche seule} : benchmark de vm2 uniquement, la nouvelle VM
+        n'est décrite que par sa fiche (nombre de vCPU, RAM, prix) ;
+  \item \textbf{B, fiche + 1 tâche} : une seule tâche mesurée sur la nouvelle VM
+        donne un facteur de vitesse unique ;
+  \item \textbf{D, fiche + 4 tâches} : une tâche par type de workload (taille
+        moyenne), soit un facteur de vitesse par type, environ 2~s de mesure ;
+  \item \textbf{E, comme D, en tenant compte de l'hyperthreading} : contention
+        de 1,00 au lieu de 1,40 pour une VM dont chaque vCPU est un cœur entier ;
+  \item \textbf{C, benchmark complet} : les 12 combinaisons mesurées sur la VM,
+        comme pour notre parc (environ 3~min).
+\end{itemize}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{llccccc}
+\toprule
+\textbf{VM} & \textbf{Processeur} & \textbf{A} & \textbf{B} & \textbf{D} & \textbf{E} & \textbf{C} \\
+\midrule
+e2-standard-4  & Intel 2,2~GHz  & \textbf{8\,\%}  & 6\,\%  & 4\,\%  & 4\,\%  & 5\,\%  \\
+n2-standard-2  & Intel 2,8~GHz  & 27\,\% & 10\,\% & 8\,\%  & 8\,\%  & 9\,\%  \\
+n2d-standard-2 & AMD EPYC 7B13  & 40\,\% & 83\,\% & 10\,\% & 10\,\% & 10\,\% \\
+t2d-standard-2 & AMD EPYC 7B13  & 55\,\% & 39\,\% & 33\,\% & \textbf{14\,\%} & 34\,\% \\
+\bottomrule
+\end{tabular}
+\caption{Erreur moyenne de la fin prédite de chaque VM jamais mesurée, sur
+6 exécutions réelles (\mesure{}). A : fiche seule ; B : + 1 tâche ; D : + 4 tâches ;
+E : + 4 tâches et hyperthreading ; C : benchmark complet.}
+\label{tab:generalisation}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{VM} & \textbf{cpu\_task} & \textbf{matrix\_task} & \textbf{memory\_task} & \textbf{sort\_task} \\
+\midrule
+e2-standard-4  & 1,03 & 1,07 & 1,07 & 1,03 \\
+n2-standard-2  & 1,29 & 1,30 & 1,35 & 1,30 \\
+n2d-standard-2 & \textbf{4,66} & 1,69 & 1,57 & 1,43 \\
+t2d-standard-2 & \textbf{4,69} & 1,76 & 1,59 & 1,43 \\
+\bottomrule
+\end{tabular}
+\caption{Vitesse d'une tâche seule, relative à vm2 (taille moyenne de chaque
+type, \mesure{}). Sur une même VM, ce facteur ne dépend presque pas de la taille.}
+\label{tab:vitesse_type}
+\end{table}
+
+\paragraph{Lecture.}
+\begin{itemize}
+  \item \textbf{Dans la même famille, la fiche suffit} : l'e2-standard-4, jamais
+        mesurée et avec deux fois plus de vCPU, est prédite à 8\,\% près à partir du
+        seul benchmark de vm2. Son ralentissement réel en parallèle (1,42) est
+        celui que le modèle déduit de son nombre de vCPU (1,40). Le modèle ne colle
+        donc pas aux instances mesurées : il dépend du \emph{type} de machine.
+  \item \textbf{Hors de la famille, la fiche ne suffit pas} : la vitesse du
+        processeur n'y figure pas. Les nouvelles VM étant plus rapides que vm2, la
+        prédiction A est trop pessimiste (27 à 55\,\%).
+  \item \textbf{Une seule tâche de calibration peut induire en erreur.} Sur
+        processeur AMD, \code{cpu\_task} va 4,7 fois plus vite que sur vm2, mais
+        les autres types seulement 1,4 à 1,8 fois. Calibrer sur \code{cpu\_task}
+        seule surestime la vitesse (B : 83\,\% d'erreur sur n2d).
+  \item \textbf{Quatre tâches suffisent} : une par type de workload (D) donne la
+        même précision que le benchmark complet (C), 4 à 10\,\% sur trois VM sur
+        quatre, pour environ 2~s de mesure au lieu de 3~min.
+  \item \textbf{L'hyperthreading doit faire partie de la fiche} : sur t2d, chaque
+        vCPU est un cœur entier, et deux tâches simultanées ne se ralentissent pas
+        (contention réelle 0,90). En le prenant en compte (E), l'erreur sur t2d
+        passe de 33 à 14\,\%.
+\end{itemize}
+
+\paragraph{Conclusion.} Le modèle se généralise à un parc jamais mesuré à
+condition de connaître, pour chaque type de machine, son nombre de vCPU, la
+présence d'hyperthreading et une vitesse par type de tâche, que quatre tâches de
+calibration suffisent à estimer. Un scheduler en production pourrait lancer ces
+quatre tâches au démarrage de chaque nouvelle VM, en quelques secondes, au lieu
+d'un benchmark complet.

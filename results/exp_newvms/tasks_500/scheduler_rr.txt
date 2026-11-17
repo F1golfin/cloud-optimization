@@ -1,0 +1,9 @@
+Lot data/tasks_500.csv : 500 tâches | VM : cloudopt-n-e2std4, cloudopt-n-n2, cloudopt-n-n2d, cloudopt-n-t2d
+Modèle V2 : durée = médiane benchmark de cloudopt-vm2 / speed x contention + 0.10 s | S = 0.6·C/C_RR + 0.4·D/D_RR | D <= 1.25 x D_RR = 58.808 s
+
+Algo                   Coût ($)  Makespan (s)        S Admissible    Calcul  Tâches par VM
+rr                     0.007333        47.046   1.0000        oui    0.0 ms  n-e2std4:125 n-n2:125 n-n2d:125 n-t2d:125
+
+Allocation écrite : results/exp_newvms/tasks_500/alloc_rr.csv
+VM à démarrer     : VMS="cloudopt-n-e2std4 cloudopt-n-n2 cloudopt-n-n2d cloudopt-n-t2d" ./scripts/manage_vms.sh start
+Puis              : ./bin/orchestrator -alloc results/exp_newvms/tasks_500/alloc_rr.csv

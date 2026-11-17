@@ -208,8 +208,10 @@ MACHINES_CSV=data/machines_newvms.csv \
   VMS="cloudopt-n-e2std4 cloudopt-n-n2 cloudopt-n-n2d cloudopt-n-t2d" ./scripts/manage_vms.sh delete
 ```
 
-Le rapport compare trois prédictions de la fin de chaque VM : fiche seule,
-fiche + une tâche de calibration, benchmark complet.
+Le rapport compare cinq prédictions de la fin de chaque VM : fiche seule,
+fiche + 1 tâche, fiche + 4 tâches (une par type), la même en tenant compte de
+l'hyperthreading (colonne `threads_per_core`), benchmark complet. Résultats :
+`docs/RESULTATS.md` § 9 quinquies.
 
 ## Expérience réelle : RR contre select-maxmin
 

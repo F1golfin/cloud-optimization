@@ -1,6 +1,6 @@
-vm,machine_type,vcpu,ram_mb,price_per_hour,contention,speed
-cloudopt-vm2,e2-medium,2,4096,0.0369,1.40,1
-cloudopt-n-e2std4,e2-standard-4,4,16384,0.147,1.40,1
-cloudopt-n-n2,n2-standard-2,2,8192,0.107,1.40,1
-cloudopt-n-n2d,n2d-standard-2,2,8192,0.093,1.40,1
-cloudopt-n-t2d,t2d-standard-2,2,8192,0.093,1.40,1
+vm,machine_type,vcpu,ram_mb,price_per_hour,contention,speed,threads_per_core
+cloudopt-vm2,e2-medium,2,4096,0.0369,1.40,1,2
+cloudopt-n-e2std4,e2-standard-4,4,16384,0.147,1.40,1,2
+cloudopt-n-n2,n2-standard-2,2,8192,0.107,1.40,1,2
+cloudopt-n-n2d,n2d-standard-2,2,8192,0.093,1.40,1,2
+cloudopt-n-t2d,t2d-standard-2,2,8192,0.093,1.40,1,1

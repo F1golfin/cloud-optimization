@@ -723,6 +723,47 @@ qu'une seule des quatre VM).
 
 ---
 
+## 9 quinquies. Test sur des VM jamais mesurées, d'autres familles (MESURES)
+
+Commande : `./scripts/exp_newvms.sh` (17/11/2026), puis `./scripts/newvms_report.sh`.
+Parc de test `data/machines_newvms.csv` : e2-standard-4 (Intel 2.20GHz),
+n2-standard-2 (Intel 2.80GHz), n2d-standard-2 et t2d-standard-2 (AMD EPYC 7B13,
+t2d sans hyperthreading). Round Robin, lots de 500 et 2000 tâches, 3 répétitions
+(6 exécutions par VM), mesures très stables (± 0,3 %), aucun bridage.
+Fichiers : `results/exp_newvms/` (dont `report.md`), `data/vm_performance_newvms.csv`
+(benchmark des nouvelles VM, utilisé seulement pour les prédicteurs B à D et C).
+
+Erreur moyenne de la fin prédite de chaque VM (|mesuré/prédit − 1|) :
+
+| VM | A fiche seule | B + 1 tâche | D + 4 tâches | E = D + hyperthreading | C benchmark complet |
+|---|---|---|---|---|---|
+| e2-standard-4 | **8 %** | 6 % | 4 % | 4 % | 5 % |
+| n2-standard-2 | 27 % | 10 % | 8 % | 8 % | 9 % |
+| n2d-standard-2 | 40 % | 83 % | 10 % | 10 % | 10 % |
+| t2d-standard-2 | 55 % | 39 % | 33 % | **14 %** | 34 % |
+
+Vitesse d'une tâche seule relative à vm2 (taille moyenne) : n2d et t2d vont
+**4,7 ×** plus vite sur `cpu_task`, mais 1,4 à 1,8 × sur les autres types ;
+e2-standard-4 ≈ 1,05 ×, n2 ≈ 1,3 × sur tous les types.
+
+### Constats
+1. **Même famille (e2) : la fiche seule suffit** (8 %), y compris pour un type
+   jamais vu à 4 vCPU. Contention réelle 1,42, celle que le modèle déduit des vCPU.
+2. **Autre famille : la fiche ne donne pas la vitesse du processeur** (27 à 55 %
+   d'erreur, prédictions trop pessimistes).
+3. **La vitesse dépend du type de tâche** (AMD : × 4,7 sur cpu_task, × 1,4-1,8
+   ailleurs) : une seule tâche de calibration induit en erreur (B : 83 % sur n2d).
+4. **4 tâches de calibration (une par type) = benchmark complet** (D ≈ C), en
+   ~2 s au lieu de ~3 min.
+5. **L'hyperthreading doit entrer dans la fiche** : t2d (1 vCPU = 1 cœur) ne se
+   ralentit pas en parallèle (0,90) ; en le prenant en compte, 33 % → 14 %.
+
+Texte du rapport : `docs/rapport/sections/08b_generalisation.tex`.
+Pas encore intégré au scheduler : D/E sont calculés par `newvms_report.sh`
+(vitesse par type et contention selon `threads_per_core`).
+
+---
+
 ## 10. Décisions prises
 
 | Décision | Raison |
