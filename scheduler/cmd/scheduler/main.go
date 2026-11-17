@@ -103,7 +103,9 @@ func main() {
 		if !ok {
 			check(fmt.Errorf("algorithme inconnu %q", *algo))
 		}
+		start := time.Now()
 		alloc := a.Run(in)
+		elapsed := time.Since(start)
 		if alloc == nil {
 			check(fmt.Errorf("%s : lot trop grand (%d tâches, %d au plus)", a.Name, len(in.Tasks), algorithms.OptimalMaxTasks))
 		}
@@ -112,7 +114,7 @@ func main() {
 		check(in.WriteAllocation(*out, alloc))
 		met := in.Evaluate(alloc)
 		printHeader()
-		printRow(in, a.Name, met, ref, 0)
+		printRow(in, a.Name, met, ref, elapsed)
 
 		// Seules les VM qui reçoivent des tâches doivent être démarrées.
 		var used []string
